@@ -13,9 +13,7 @@ for name in full_filenames:
     newname = name.replace(" ", "\ ")
     print "rsync -avPh " + newname + " tfriedrich@chef.compbio.ucsf.edu:~/Mattis_fastq"
 
-#fastqc #quality control check 
-#./fastqc ~/Mattis_fastq/160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1.fq.gz 
-#starr align to human 
+
 #genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR 
 #subread feature counts 
 
@@ -34,3 +32,13 @@ for name in full_filenames:
 #source
 #genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --runThreadN 8 --runMode genomeGenerate --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star/ --genomeFastaFiles /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr10.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr11.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr12.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr13.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr14.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr15.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr16.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr17.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr18.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr19.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr1.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr20.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr21.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr22.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr2.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr3.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr4.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr5.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr6.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr7.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr8.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr9.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chrM.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chrX.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chrY.fa.gz --sjdbGTFfile /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90_ucsc_formatted.gtf --sjdbOverhang 48
 #genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --runThreadN 8 --runMode genomeGenerate --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star/ --genomeFastaFiles /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr10.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr11.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr12.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr13.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr14.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr15.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr16.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr17.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr18.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr19.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr1.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr20.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr21.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr22.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr2.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr3.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr4.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr5.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr6.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr7.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr8.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chr9.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chrM.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chrX.fa.gz, /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/fasta/chrY.fa.gz --sjdbGTFfile /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90_ucsc_formatted.gtf --sjdbOverhang 48
+
+
+#fastqc #quality control check 
+#./fastqc ~/Mattis_fastq/160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1.fq.gz 
+#starr align to human 
+fastq-mcf 
+multiqc 
+alignment
+subread feature counts
+heatmap 
