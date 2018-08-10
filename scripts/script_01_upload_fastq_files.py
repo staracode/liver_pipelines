@@ -37,8 +37,10 @@ for name in full_filenames:
 #fastqc #quality control check 
 #./fastqc ~/Mattis_fastq/160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1.fq.gz 
 #starr align to human 
-fastq-mcf 
-multiqc 
-alignment
-subread feature counts
+software_source/FastQC/fastqc
+software_source/ExpressionAnalysis-ea-utils-bd148d4/clipper/fastq-mcf
+./multiqc 
+genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR
+software_source/subread-1.6.2-source/bin/featureCounts
 heatmap 
+
