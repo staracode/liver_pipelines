@@ -33,7 +33,6 @@ ls
 gunzip fasta/*
 mkdir star 
 
-#bin/STAR --runThreadN 8 --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles fasta/chr10.fa fasta/chr11.fa fasta/chr12.fa fasta/chr13.fa fasta/chr14.fa fasta/chr15.fa fasta/chr16.fa fasta/chr17.fa fasta/chr18.fa fasta/chr19.fa fasta/chr1.fa fasta/chr20.fa fasta/chr21.fa fasta/chr22.fa fasta/chr2.fa fasta/chr3.fa fasta/chr4.fa fasta/chr5.fa fasta/chr6.fa fasta/chr7.fa fasta/chr8.fa fasta/chr9.fa fasta/chrM.fa fasta/chrX.fa fasta/chrY.fa --sjdbGTFfile Homo_sapiens.GRCh38.90_ucsc_formatted.gtf --sjdbOverhang 100
 bin/STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles fasta/chr10.fa fasta/chr11.fa fasta/chr12.fa fasta/chr13.fa fasta/chr14.fa fasta/chr15.fa fasta/chr16.fa fasta/chr17.fa fasta/chr18.fa fasta/chr19.fa fasta/chr1.fa fasta/chr20.fa fasta/chr21.fa fasta/chr22.fa fasta/chr2.fa fasta/chr3.fa fasta/chr4.fa fasta/chr5.fa fasta/chr6.fa fasta/chr7.fa fasta/chr8.fa fasta/chr9.fa fasta/chrM.fa fasta/chrX.fa fasta/chrY.fa --sjdbGTFfile Homo_sapiens.GRCh38.90_ucsc_formatted.gtf --sjdbOverhang 100
 
 cp -r $INDEX_DIR  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/
