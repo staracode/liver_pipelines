@@ -10,11 +10,8 @@
 #$ -l arch=linux-x64               #-- SGE resources (CPU type)
 #$ -l netapp=10G,scratch=10G         #-- SGE resources (home and scratch disks)
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
-##$ -t 1-15                        #-- remove first '#' to specify the number of
 
 
-#tasks=(0 /netapp/home/tfriedrich/Mattis/filtered//160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAAORAAPEI-38_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAAPRAAPEI-39_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAAQRAAPEI-40_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAARRAAPEI-41_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAASRAAPEI-42_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAATRAAPEI-43_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L1_HK500HUMyhuRAAWRAAPEI-1_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABDRAAPEI-8_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABERAAPEI-9_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABFRAAPEI-10_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABIRAAPEI-13_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABJRAAPEI-14_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABKRAAPEI-15_1_trimmed.fq.gz /netapp/home/tfriedrich/Mattis/filtered//170924_I89_CL100030081_L2_HK500HUMyhuRABLRAAPEI-16_1_trimmed.fq.gz)
-#fastq="${tasks[$SGE_TASK_ID]}"
 
 if [ ! -d "$BIN_DIR" ]; then
 	mkdir /netapp/home/tfriedrich/Mattis/counts
