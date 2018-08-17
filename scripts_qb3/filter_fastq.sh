@@ -20,6 +20,7 @@ samples=`wc -l $FILE1`
 echo $samples
 ##$ -t 1-$samples                       #-- remove first '#' to specify the number of
 
+# Read in file containing fastq file locations. 
 INPUT=(0)
 while IFS=: read -r f1 f2 
 do
@@ -31,31 +32,21 @@ do
 done <"$FILE1"
 echo "${INPUT[@]}"
 
-
-#BIN_DIR=bin
 FASTQ_DIR=~/$DIR_NAME/fastq/
 FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
 
-if [ ! -d "$BIN_DIR" ]; then
-	mkdir $BIN_DIR
-fi
 if [ ! -d "$FASTQ_TRIM_DIR" ]; then
 	mkdir $FASTQ_TRIM_DIR
 fi
-
-# copy software (is this necessary?)
-#cp -r ~/LiverCenter/software_source/FastQC $BIN_DIR
-#cp -r ~/LiverCenter/software_source/ExpressionAnalysis-ea-utils-bd148d4/clipper/fastq-mcf $BIN_DIR
-#cp ~/LiverCenter/pipeline_files/illumina.adapter.file.txt ./
 
 # Input Fastq Files
 #tasks=(0 /netapp/home/tfriedrich/Mattis/fastq//160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAORAAPEI-38_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAPRAAPEI-39_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAQRAAPEI-40_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAARRAAPEI-41_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAASRAAPEI-42_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAATRAAPEI-43_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAWRAAPEI-1_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABDRAAPEI-8_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABERAAPEI-9_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABFRAAPEI-10_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABIRAAPEI-13_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABJRAAPEI-14_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABKRAAPEI-15_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABLRAAPEI-16_1.fq.gz)
 fastq="${INPUT[$SGE_TASK_ID]}"
 fastq_trim=`basename $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`
 fastq_base=`basename $fastq | sed 's/.fq.gz//'`
-	
-ls 
 
+# Use this to debug issues
+echo $PWD
 echo $fastq_trim
 
 # Quality of data before trimming
@@ -64,5 +55,3 @@ echo $fastq_trim
 fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $fastq -o $FASTQ_TRIM_DIR'/'$fastq_trim  
 # Quality of the data after trimming
 /netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim 
-
-
