@@ -11,7 +11,10 @@
 #$ -l netapp=10G,scratch=10G         #-- SGE resources (home and scratch disks)
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
 
+# Directory where fastq file for project reside
 DIR_NAME=$1
+
+# File listing all the fastq file names and identifiers
 FILE1=$2
 samples=`wc -l $FILE1`
 echo $samples
