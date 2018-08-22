@@ -12,6 +12,9 @@
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
 #$ -t 1-15                        #-- remove first '#' to specify the number of
 
+# Directory where fastq file for project reside
+DIR_NAME=$1
+
 #READ in fastq file name and replace with trimmed fastq file name
 # Read in file containing fastq file locations. 
 INPUT=(0)
@@ -33,8 +36,8 @@ prefix=`basename $fastq | sed 's/_trimmed.fq.gz/_algn/'`
 
 # Output directory
 if [ ! -d "$BIN_DIR" ]; then
-	mkdir /netapp/home/tfriedrich/Mattis/algn/
+	mkdir /netapp/home/tfriedrich/$DIR_NAME/algn/
 fi 
 
 echo $prefix
-/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/Mattis/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $fastq_trim 
+/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $fastq_trim 

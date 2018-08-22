@@ -12,12 +12,14 @@
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
 
 
+# Directory where fastq file for project reside
+DIR_NAME=$1
 
 if [ ! -d "$BIN_DIR" ]; then
 	mkdir /netapp/home/tfriedrich/Mattis/counts
 fi 
 
-input_files=`ls Mattis/algn/*sam`
+input_files=`ls $DIR_NAME/algn/*sam`
 annotation_file=~/LiverCenter/genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90.gtf
-output_file=~/Mattis/counts/readcounts.txt
-~/LiverCenter/software_source/subread-1.6.2-source/bin/featureCounts -a $annotation_file -o $output_file $input_files
+output_file=~/$DIR_NAME/counts/readcounts.txt
+~/LiverCenter/software_source/subread-1.6.2-source/bin/featureCounts -p -O -M -T 1   -t exon -g gene_id -a $annotation_file -o $output_file $input_files
