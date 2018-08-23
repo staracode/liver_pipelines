@@ -16,7 +16,7 @@
 DIR_NAME=$1
 
 if [ ! -d "$BIN_DIR" ]; then
-	mkdir /netapp/home/tfriedrich/Mattis/counts
+	mkdir /netapp/home/tfriedrich/$DIR_NAME/counts
 fi 
 
 input_files=`ls $DIR_NAME/algn/*sam`
