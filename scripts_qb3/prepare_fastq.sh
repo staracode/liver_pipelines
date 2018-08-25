@@ -4,4 +4,5 @@ lftp --user tara.friedrich@ucsf.edu ftps://ftp.box.com
 
 # check paired end stuff
 
+#check md5 sums
 

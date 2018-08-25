@@ -1,4 +1,4 @@
-#!/bin/bash                         #-- what is the language of this shell
+ 	#!/bin/bash                         #-- what is the language of this shell
 #                                  #-- Any line that starts with #$ is an instruction to SGE
 #$ -S /bin/bash                     #-- the shell for the job
 #$ -o filter_stdout                       #-- output directory (fill in)
@@ -22,15 +22,20 @@ echo $samples
 
 # Read in file containing fastq file locations. 
 INPUT=(0)
-while IFS=: read -r f1 f2 
+INPUT2=(0)
+while IFS=$'\t' read -r f1 f2 f3 #fastq, mate pair, label, replicate?
 do
-	printf 'Username: %s, Shell: %s\n' "$f1" "$f2" 
+	printf 'FASTQ: %s, PAIR: %s\n' "$f1" "$f2" 
 	# check whitespace
 	# check that file is fastq.gz 
 	# [ -z "$line" ] && continue
 	INPUT+=($f1)
+	INPUT2+=($f2)  #TODO: handle if paired end doesn't exist
 done <"$FILE1"
 echo "${INPUT[@]}"
+
+echo "mate"
+echo "${INPUT2[@]}"
 
 FASTQ_DIR=~/$DIR_NAME/fastq/
 FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
@@ -40,18 +45,21 @@ if [ ! -d "$FASTQ_TRIM_DIR" ]; then
 fi
 
 # Input Fastq Files
-#tasks=(0 /netapp/home/tfriedrich/Mattis/fastq//160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAORAAPEI-38_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAPRAAPEI-39_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAQRAAPEI-40_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAARRAAPEI-41_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAASRAAPEI-42_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAATRAAPEI-43_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L1_HK500HUMyhuRAAWRAAPEI-1_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABDRAAPEI-8_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABERAAPEI-9_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABFRAAPEI-10_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABIRAAPEI-13_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABJRAAPEI-14_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABKRAAPEI-15_1.fq.gz /netapp/home/tfriedrich/Mattis/fastq//170924_I89_CL100030081_L2_HK500HUMyhuRABLRAAPEI-16_1.fq.gz)
 fastq="${INPUT[$SGE_TASK_ID]}"
-fastq_trim=`basename $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`
-fastq_base=`basename $fastq | sed 's/.fq.gz//'`
+fastq_trim=`basename $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+
+fastq2="${INPUT2[$SGE_TASK_ID]}"
+fastq_trim2=`basename $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
 
 # Use this to debug issues
 echo $PWD
-echo $fastq_trim
+
+echo $FASTQ_DIR'/'$fastq
+echo $FASTQ_DIR'/'$fastq2
 
 # Quality of data before trimming
-/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $fastq 
-# Trim fastq file
-fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $fastq -o $FASTQ_TRIM_DIR'/'$fastq_trim  
+/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2
+# Trim fastq filem
+/netapp/home/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2 -o $FASTQ_TRIM_DIR'/'$fastq_trim -o $FASTQ_TRIM_DIR'/'$fastq_trim2
 # Quality of the data after trimming
-/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim 
+/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
