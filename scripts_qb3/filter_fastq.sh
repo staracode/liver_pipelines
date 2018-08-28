@@ -46,10 +46,10 @@ fi
 
 # Input Fastq Files
 fastq="${INPUT[$SGE_TASK_ID]}"
-fastq_trim=`basename $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
 
 fastq2="${INPUT2[$SGE_TASK_ID]}"
-fastq_trim2=`basename $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
 
 # Use this to debug issues
 echo $PWD
