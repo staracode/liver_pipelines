@@ -1,0 +1,67 @@
+---
+title: "2018_09_07_Willenbring_motif_enrichment"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+data_DE = read.table("Downloads/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
+head(data_DE)
+
+library(biomaRt)
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+chr1_genes <- getBM(attributes=c('ensembl_gene_id','ensembl_transcript_id','hgnc_symbol','chromosome_name','start_position','end_position'), filters ='chromosome_name', values ="1", mart = ensembl)
+
+source("https://bioconductor.org/biocLite.R")
+biocLite("org.Mm.eg.db")
+
+library(org.Mm.eg.db)
+sessionInfo()
+org.Mm.eg.db
+## Bimap interface:
+x <- org.Mm.egCHRLOC
+# Get the entrez gene identifiers that are mapped to chromosome locations
+mapped_genes <- mappedkeys(x)
+# Convert to a list
+xx <- as.list(x[mapped_genes])
+if(length(xx) > 0) {
+      # Get the CHRLOC for the first five genes
+      xx[1:5]
+      # Get the first one
+      xx[[1]]
+}
+annotation = ldply(xx, data.frame)
+chr = unlist(lapply(xx, names))
+annotation2 = cbind(annotation, chr)
+annotation2[, "strand"] = lapply (annotation2$X..i.., function(x) if ((x)< 0) {strand = 1} else{strand=-1} )
+
+annotation2[, "strand"] = unlist(lapply (annotation2$X..i.., function(x) if ((x)< 0) {strand = 1} else{strand=-1} ))
+annotation2[, "start"]  = abs (annotation2$X..i..)
+index = match (data_DE$Entrez, annotation$.id)
+data_DE2 = cbind(annotation2[index,], data_DE)
+#format into two columns
+
+#get sequence
+
+#get fasta 
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
