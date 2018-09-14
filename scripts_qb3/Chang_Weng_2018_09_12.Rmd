@@ -39,7 +39,7 @@ setwd("~/Downloads/chang/")
 ```{r}
 filename = "readcounts.txt"
 counts1 = read.table(filename, header = T, stringsAsFactors = F) 
-rownames(counts1) = counts1$Geneid
+rownames(counts1) = counts1$geneID
 
 ```
 Remove metadata (Gene, coordinates, etc)
@@ -64,7 +64,11 @@ colnames(counts2)
 ```
 Filter out genes with low and high counts ( high counts might be mitochondrial genes)
 ```{r}
-keep = rowMeans(counts2) > 5 & rowMeans(counts2) < 5000 
+#data in table has probably already been filtered so keep all rows in this case
+#keep = rowMeans(counts2) > 5 & rowMeans(counts2) < 5000 
+#keep = seq(1, nrow(counts2))
+#if adjust p-values are NA then they probably removed that gene when testing for DE
+keep = !(is.na(counts1$padj.KO_bredvsWT_bred.) | is.na(counts1$padj.KO_virusvsWT_virus.))
 counts3 = counts2[keep,]
 dim(counts2)
 dim(counts3)
@@ -73,7 +77,9 @@ dim(counts3)
 Take the log (RPKM)
 ```{r}
 y <- DGEList(counts=counts3)
-fpkm_log_matrix = rpkm (y, gene.length=counts1[keep,"GeneLength"], log = TRUE)
+#fpkm_log_matrix = rpkm (y, gene.length=counts1[keep,"GeneLength"], log = TRUE)
+fpkm_log_matrix = rpkm (y, gene.length=counts1[keep,"GeneLength"], log = FALSE)
+
 ```
 Dendrogram 
 ```{r}
@@ -88,6 +94,7 @@ Condition1 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, n
 Condition2 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,2], levels = c("KO", "WT"))
 Condition2 = relevel(Condition2, ref="WT")
 cold <- data.frame("Condition1"=Condition1, "Condition2"=Condition2) 
+rownames(cold) = colnames(counts3)
 cold
 
 ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts3, colData=cold, design=~Condition1 + Condition2);
@@ -173,7 +180,7 @@ Format output into excel sheet.
 genes = rownames(counts3)
 ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
 head(listAttributes(ensembl), 30)
-mmusculus_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+mmusculus_swissprot <- getBM(attributes=c('ensembl_gene_id','external_gene_name','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
 
 #fpkm_log_matrix2 = rpkm (y_for_DE_virus, gene.length=counts1[keep,"GeneLength"], log = TRUE)
 index = match (genes, mmusculus_swissprot$ensembl_gene_id)
@@ -186,5 +193,87 @@ colnames(results) = c(
                   , unlist(lapply (colnames(lrt_bred_table), function(x) paste(x, "_bred_KO_vs_WT_baseline", sep="_"))) )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
 write.table(results, paste0("~/Downloads/chang/chang_", curr_date, ".xls"), row.names=F, col.names=T, sep="\t")
+
+```
+```{r}
+
+library(UpSetR)
+upsetr_matrix  = data.frame(cbind(as.integer(results$adjPVal_BH__virus_KO_vs_WT_baseline<0.05), as.integer(results$adjPVal_BH__bred_KO_vs_WT_baseline<0.05), as.integer(counts1$padj.KO_virusvsWT_virus.< 0.05)[keep], as.integer(counts1$padj.KO_bredvsWT_bred. < 0.05)[keep]))
+colnames(upsetr_matrix) = c ("KO_vs_WT_virus1", "KO_vs_WT_bred1", "KO_vs_WT_virus2", "KO_vs_WT_bred2")
+#remove rows with one or more NA 
+upsetr_matrix2 = upsetr_matrix[which(complete.cases(upsetr_matrix)), ]
+dim(upsetr_matrix)
+dim(upsetr_matrix2)
+colSums(upsetr_matrix2)
+upset(upsetr_matrix2, sets = c("KO_vs_WT_virus1", "KO_vs_WT_bred1",  "KO_vs_WT_virus2", "KO_vs_WT_bred2"),sets.bar.color = "#56B4E9", order.by = "freq", empty.intersections = "on")
+
+```
+```{r}
+#compare fpkm values  check
+qqplot(results$Bred_WT_rep1_counts, counts1$WT73M_readcount[keep])
+cor(results$Bred_WT_rep1_counts, counts1$WT73M_readcount[keep])
+cor(results$Bred_WT_rep1_fpkm, counts1$WT73M_fpkm[keep])
+cor(results$Virus_WT_rep2_fpkm, counts1$WT113M_fpkm[keep])
+cor(results$Virus_KO_rep2_fpkm, counts1$KO117M_fpkm[keep])
+
+```
+How do the genes that are unique differ 
+```{r}
+library(limma)
+venn1 = vennCounts(upsetr_matrix2[,c("KO_vs_WT_virus1", "KO_vs_WT_virus2" )])
+vennDiagram(venn1)
+
+venn2 = vennCounts(upsetr_matrix2[,c("KO_vs_WT_bred1", "KO_vs_WT_bred2")])
+vennDiagram(venn2)
+```
+Try to use DEseq2 : Virus KO vs WT 
+```{r}
+library("DESeq2")
+dds_virus <- DESeqDataSetFromMatrix(countData = counts3[, Virus_cols],
+                              colData = cold [Virus_cols,],
+                              design = ~ Condition2)
+dds_virus
+dds_virus <- DESeq(dds_virus)
+res_virus <- results(dds_virus)
+res_virus
+hist(res_virus$pvalue)
+```
+Try to use DEseq2 : Bred KO vs WT
+```{r}
+dds_bred <- DESeqDataSetFromMatrix(countData = counts3[, Bred_cols],
+                              colData = cold [Bred_cols,],
+                              design = ~ Condition2)
+dds_bred
+dds_bred <- DESeq(dds_bred)
+res_bred <- results(dds_bred)
+res_bred
+hist(res_bred$pvalue)
+```
+
+```{r}
+
+library(UpSetR)
+upsetr_matrix  = data.frame(cbind(as.integer(results$adjPVal_BH__virus_KO_vs_WT_baseline<0.05), as.integer(results$adjPVal_BH__bred_KO_vs_WT_baseline<0.05), as.integer(counts1$padj.KO_virusvsWT_virus.< 0.05)[keep], as.integer(counts1$padj.KO_bredvsWT_bred. < 0.05)[keep], as.integer(res_virus$padj<0.05), as.integer(res_bred$padj<0.05)))
+colnames(upsetr_matrix) = c ("KO_vs_WT_virus1", "KO_vs_WT_bred1", "KO_vs_WT_virus2", "KO_vs_WT_bred2", "KO_vs_WT_virus3", "KO_vs_WT_bred3" )
+#remove rows with one or more NA 
+upsetr_matrix2 = upsetr_matrix[which(complete.cases(upsetr_matrix)), ]
+dim(upsetr_matrix)
+dim(upsetr_matrix2)
+colSums(upsetr_matrix2)
+upset(upsetr_matrix2, sets = c("KO_vs_WT_virus1", "KO_vs_WT_bred1",  "KO_vs_WT_virus2", "KO_vs_WT_bred2","KO_vs_WT_virus3", "KO_vs_WT_bred3"),sets.bar.color = "#56B4E9", order.by = "freq", empty.intersections = "on")
+
+venn1 = vennCounts(upsetr_matrix2[,c("KO_vs_WT_virus1", "KO_vs_WT_virus2", "KO_vs_WT_virus3" )])
+vennDiagram(venn1)
+
+venn2 = vennCounts(upsetr_matrix2[,c("KO_vs_WT_bred1", "KO_vs_WT_bred2", "KO_vs_WT_bred3")])
+vennDiagram(venn2)
+
+
+
+venn3 = vennCounts(upsetr_matrix2[,c( "KO_vs_WT_virus2", "KO_vs_WT_virus3" )])
+vennDiagram(venn3)
+
+venn4 = vennCounts(upsetr_matrix2[,c( "KO_vs_WT_bred2", "KO_vs_WT_bred3")])
+vennDiagram(venn4)
 
 ```
