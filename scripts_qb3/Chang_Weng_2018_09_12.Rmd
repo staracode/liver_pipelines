@@ -1,0 +1,190 @@
+---
+title: "2018_09_12_Chang_Weng"
+output: html_document
+---
+```{r}
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+sessionInfo()
+```
+
+Friday, September 7, 2018 
+WT73M_readcount               Bred WT
+WT58M_readcount               Bred WT
+WT973M_readcount             Bred WT
+KO87M_readcount                Bred KO
+KO56M_readcount                Bred KO
+KO972M_readcount              Bred KO
+WT112M_readcount             Virus WT
+WT113M_readcount             Virus WT
+WT114M_readcount             Virus WT
+KO116M_readcount              Virus KO
+KO117M_readcount              Virus KO
+KO119M_readcount              Virus KO
+
+
+
+```{r }
+#library(readxl)
+setwd("~/Downloads/chang/")
+#originaldata = read_excel("gene_list/gene.description.xls", sheet="gene.description") #disappointed this didn't work
+                         #need to download the developer version to see if that works
+#devtools::install_version("readxl", version = "1.0.0")
+#https://github.com/tidyverse/readxl/issues/466
+
+```
+```{r}
+filename = "readcounts.txt"
+counts1 = read.table(filename, header = T, stringsAsFactors = F) 
+rownames(counts1) = counts1$Geneid
+
+```
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts2 = counts1[,grep("readcount", colnames(counts1))]
+sample_names = list(
+  "WT73M_readcount" = "Bred_WT_rep1"
+, "WT58M_readcount" = "Bred_WT_rep2"
+, "WT973M_readcount" = "Bred_WT_rep3"
+, "KO87M_readcount" = "Bred_KO_rep1"
+, "KO56M_readcount" = "Bred_KO_rep2"
+, "KO972M_readcount" = "Bred_KO_rep3"
+, "WT112M_readcount" = "Virus_WT_rep1"
+, "WT113M_readcount" = "Virus_WT_rep2"
+, "WT114M_readcount" = "Virus_WT_rep3"
+, "KO116M_readcount" = "Virus_KO_rep1"
+, "KO117M_readcount" = "Virus_KO_rep2"
+, "KO119M_readcount" = "Virus_KO_rep3"
+)
+colnames(counts2) = unlist(lapply (colnames(counts2), function(x) sample_names[[x]]))
+colnames(counts2)
+```
+Filter out genes with low and high counts ( high counts might be mitochondrial genes)
+```{r}
+keep = rowMeans(counts2) > 5 & rowMeans(counts2) < 5000 
+counts3 = counts2[keep,]
+dim(counts2)
+dim(counts3)
+```
+
+Take the log (RPKM)
+```{r}
+y <- DGEList(counts=counts3)
+fpkm_log_matrix = rpkm (y, gene.length=counts1[keep,"GeneLength"], log = TRUE)
+```
+Dendrogram 
+```{r}
+# 
+#par(cex=1,font=3)
+hc2 <- hclust(stats::dist(t(fpkm_log_matrix), method="minkowski"), "ward.D2")
+#par(mar=c(10, 4, 4, 10), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by log2(FPKM+1) using Ward's clustering & Euclidean distance")
+```
+```{r}
+Condition1 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,1], levels = c("Bred", "Virus"))
+Condition2 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,2], levels = c("KO", "WT"))
+Condition2 = relevel(Condition2, ref="WT")
+cold <- data.frame("Condition1"=Condition1, "Condition2"=Condition2) 
+cold
+
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts3, colData=cold, design=~Condition1 + Condition2);
+colnames(ddsMat) <- colnames(counts3)
+rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
+#rld <- DESeq2::rlog(ddsMat, blind=blind_status) 
+```
+
+```{r}
+pca              <- prcomp(t(assay(rld)))
+#barplot(allPer.vec, main="PCA: % variance explained by each component\n" , ylim=c(0,100), names.arg=allPerLabels.vec)
+
+d <- data.frame(pca$x, group=Condition1, Condition2, name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2", shape="Condition2", color="group"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+```
+Heatmap to see how cells cluster by cell type or experimental condition.  No replicates because they have been combined. 
+```{r}
+HEATMAP_HEIGHT <- 45 # inchescol
+HEATMAP_WIDTH  <- 15
+annotation <- data.frame(
+  Condition1= Condition1, Condition2=Condition2)
+rownames(annotation) <- colnames(fpkm_log_matrix)
+pheatmap(fpkm_log_matrix,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         , annotation = annotation
+         , fontsize_row=3.5)
+```
+
+Fit the model and estimate dispersion value.
+```{r}
+Virus_cols = grep ("Virus", colnames(counts3))
+design_matrix_virus <- model.matrix( ~ Condition2[Virus_cols])
+colnames(design_matrix_virus)
+design_matrix_virus
+y_for_DE_virus <- DGEList(counts=counts3[, Virus_cols])
+y_for_DE_virus <- calcNormFactors(y_for_DE_virus)
+y_for_DE_virus = estimateDisp(y_for_DE_virus, design=design_matrix_virus) 
+plotBCV(y_for_DE_virus)
+fit_virus <- glmFit(y_for_DE_virus, design=design_matrix_virus, dispersion=y_for_DE_virus$trended.dispersion)
+```
+```{r}
+Bred_cols = grep ("Bred", colnames(counts3))
+design_matrix_bred <- model.matrix( ~ Condition2[Bred_cols])
+colnames(design_matrix_bred)
+design_matrix_bred
+y_for_DE_bred <- DGEList(counts=counts3[, Bred_cols])
+y_for_DE_bred <- calcNormFactors(y_for_DE_bred)
+y_for_DE_bred = estimateDisp(y_for_DE_bred, design=design_matrix_bred) 
+plotBCV(y_for_DE_bred)
+fit_bred <- glmFit(y_for_DE_bred, design=design_matrix_bred, dispersion=y_for_DE_bred$trended.dispersion)
+```
+
+Virus: KO vs WT
+```{r}
+lrt_virus <- glmLRT(fit_virus,coef = "Condition2[Virus_cols]KO")
+topTags(lrt_virus)
+smoothScatter(x=lrt_virus$table$logFC, y=-log10(lrt_virus$table$PValue))
+lrt_virus_table = data.frame(lrt_virus$table, p.adjust(lrt_virus$table$PValue, method = "BH"))
+colnames(lrt_virus_table) = c(colnames(lrt_virus$table), "adjPVal_BH")
+hist(lrt_virus_table$PValue)
+```
+
+Bred: KO vs WT
+```{r}
+lrt_bred <- glmLRT(fit_bred,coef = "Condition2[Bred_cols]KO")
+topTags(lrt_bred)
+smoothScatter(x=lrt_bred$table$logFC, y=-log10(lrt_bred$table$PValue))
+lrt_bred_table = data.frame(lrt_bred$table, p.adjust(lrt_bred$table$PValue, method = "BH"))
+colnames(lrt_bred_table) = c(colnames(lrt_bred$table), "adjPVal_BH")
+hist(lrt_bred_table$PValue)
+```
+Format output into excel sheet. 
+```{r}
+genes = rownames(counts3)
+ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
+head(listAttributes(ensembl), 30)
+mmusculus_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+
+#fpkm_log_matrix2 = rpkm (y_for_DE_virus, gene.length=counts1[keep,"GeneLength"], log = TRUE)
+index = match (genes, mmusculus_swissprot$ensembl_gene_id)
+results = data.frame(mmusculus_swissprot[index,], counts3, fpkm_log_matrix, lrt_virus_table, lrt_bred_table)
+colnames(results) = c(
+                    colnames(mmusculus_swissprot[index,])
+                  , unlist(lapply (colnames(counts3), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_log_matrix), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_virus_table), function(x) paste(x, "_virus_KO_vs_WT_baseline", sep="_")))
+                  , unlist(lapply (colnames(lrt_bred_table), function(x) paste(x, "_bred_KO_vs_WT_baseline", sep="_"))) )
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Downloads/chang/chang_", curr_date, ".xls"), row.names=F, col.names=T, sep="\t")
+
+```
