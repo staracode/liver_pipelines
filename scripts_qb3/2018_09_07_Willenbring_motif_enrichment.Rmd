@@ -3,27 +3,24 @@ title: "2018_09_07_Willenbring_motif_enrichment"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+```{r }
+library(plyr)
 ```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-data_DE = read.table("Downloads/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
+Read in data
+```{r}
+data_DE = read.table("~/Downloads/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
 head(data_DE)
 
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
 chr1_genes <- getBM(attributes=c('ensembl_gene_id','ensembl_transcript_id','hgnc_symbol','chromosome_name','start_position','end_position'), filters ='chromosome_name', values ="1", mart = ensembl)
 
-source("https://bioconductor.org/biocLite.R")
-biocLite("org.Mm.eg.db")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("org.Mm.eg.db")
+```
 
+```{r}
 library(org.Mm.eg.db)
 sessionInfo()
 org.Mm.eg.db
@@ -54,14 +51,12 @@ data_DE2 = cbind(annotation2[index,], data_DE)
 
 #get fasta 
 
+#scan for motifs in transfac 
+
+#scan for motifs in jaspar
+
+#motifdiverge
+
+#motif enrichment using meme 
+
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
