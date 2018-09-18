@@ -6,24 +6,30 @@ output: html_document
 
 ```{r }
 library(plyr)
+library(biomaRt)
+library(org.Mm.eg.db)
+sessionInfo()
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("org.Mm.eg.db")
+#get sequence
+#biocLite("BSgenome")
+library(BSgenome)
+available.genomes()
+#biocLite("BSgenome.Mmusculus.UCSC.mm10.masked")
+library(BSgenome.Mmusculus.UCSC.mm10.masked)
 ```
 Read in data
 ```{r}
 data_DE = read.table("~/Downloads/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
 head(data_DE)
+#significantly DE between Heps and baselien MFs
+data_DE_sig = data_DE[which(data_DE[, "False.discovery.rate"] <= 0.01),]
+#ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
+#chr1_genes <- getBM(attributes=c('ensembl_gene_id','ensembl_transcript_id','external_gene_name','chromosome_name','start_position','end_position'), filters ='chromosome_name', values ="1", mart = ensembl)
 
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
-chr1_genes <- getBM(attributes=c('ensembl_gene_id','ensembl_transcript_id','hgnc_symbol','chromosome_name','start_position','end_position'), filters ='chromosome_name', values ="1", mart = ensembl)
-
-#source("https://bioconductor.org/biocLite.R")
-#biocLite("org.Mm.eg.db")
 ```
 
 ```{r}
-library(org.Mm.eg.db)
-sessionInfo()
-org.Mm.eg.db
 ## Bimap interface:
 x <- org.Mm.egCHRLOC
 # Get the entrez gene identifiers that are mapped to chromosome locations
@@ -39,19 +45,48 @@ if(length(xx) > 0) {
 annotation = ldply(xx, data.frame)
 chr = unlist(lapply(xx, names))
 annotation2 = cbind(annotation, chr)
-annotation2[, "strand"] = lapply (annotation2$X..i.., function(x) if ((x)< 0) {strand = 1} else{strand=-1} )
 
-annotation2[, "strand"] = unlist(lapply (annotation2$X..i.., function(x) if ((x)< 0) {strand = 1} else{strand=-1} ))
-annotation2[, "start"]  = abs (annotation2$X..i..)
-index = match (data_DE$Entrez, annotation$.id)
-data_DE2 = cbind(annotation2[index,], data_DE)
-#format into two columns
 
-#get sequence
+#  --------------------------X-->>>>>>>>
+#  ----start----------------end->>>>>>>>  (+)
 
-#get fasta 
+#  <<<<<<<-X------------------------
+#  <<<<<<<-start----------------end-      (-)
 
+annotation2[, "start"] = unlist(lapply (annotation2$X..i.., function(x) if (x < 0) { abs(x) - 1000 } else{ abs(x) - 1000  } ))
+annotation2[, "end"] = unlist(lapply (annotation2$X..i.., function(x) if (x < 0) { abs(x)  } else{ abs(x)} ))
+annotation2[, "strand"] = unlist(lapply (annotation2$X..i.., function(x) if (x < 0) { "-" } else{ "+" } ))
+annotation2[, "chrom"] = paste0("chr", annotation2$chr)
+index = match (data_DE_sig$Entrez, annotation$.id)
+data_DE2 = cbind(annotation2[index,], data_DE_sig)
+
+#lots of entrez IDs missing because they look like this "15507 /// 15508"
+head(data_DE2)
+```
+
+```{r}
+myseqs = data_DE2[, c("chrom", "start", "end", "strand")]
+dim(myseqs)
+myseqs = myseqs[complete.cases(myseqs),]
+dim(myseqs)
+library("dplyr")
+myseqs = distinct(myseqs)
+dim(myseqs)
+
+myseqs2 = getSeq(BSgenome.Mmusculus.UCSC.mm10.masked, myseqs$chrom, start=myseqs$start, end=myseqs$end, strand=myseqs$strand)
+
+labels = paste(myseqs$chrom, myseqs$start, myseqs$end, myseqs$strand, sep="||")
+length(which(!duplicated(labels[order(labels)])))
+names(myseqs2) = labels
+writeXStringSet(myseqs2, "~/Downloads/fasta.fa", format="fasta")
+myseqs2
+```
+
+```{r}
 #scan for motifs in transfac 
+
+#matchPWM
+
 
 #scan for motifs in jaspar
 
@@ -59,4 +94,7 @@ data_DE2 = cbind(annotation2[index,], data_DE)
 
 #motif enrichment using meme 
 
+```
+
+```{r}
 ```
