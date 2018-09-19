@@ -29,20 +29,21 @@ KO119M_readcount              Virus KO
 
 ```{r }
 #library(readxl)
-setwd("~/Downloads/chang/")
+setwd("~/Documents/chang/")
 #originaldata = read_excel("gene_list/gene.description.xls", sheet="gene.description") #disappointed this didn't work
                          #need to download the developer version to see if that works
 #devtools::install_version("readxl", version = "1.0.0")
 #https://github.com/tidyverse/readxl/issues/466
 
 ```
+Read in read counts for each sample taken from gene.description.xls
 ```{r}
 filename = "readcounts.txt"
 counts1 = read.table(filename, header = T, stringsAsFactors = F) 
 rownames(counts1) = counts1$geneID
 
 ```
-Remove metadata (Gene, coordinates, etc)
+Rename samples according to Yun's instructions
 ```{r}
 counts2 = counts1[,grep("readcount", colnames(counts1))]
 sample_names = list(
@@ -62,7 +63,7 @@ sample_names = list(
 colnames(counts2) = unlist(lapply (colnames(counts2), function(x) sample_names[[x]]))
 colnames(counts2)
 ```
-Filter out genes with low and high counts ( high counts might be mitochondrial genes)
+Normally ilter out genes with low and high counts ( high counts might be mitochondrial genes)
 ```{r}
 #data in table has probably already been filtered so keep all rows in this case
 #keep = rowMeans(counts2) > 5 & rowMeans(counts2) < 5000 
@@ -87,7 +88,7 @@ Dendrogram
 #par(cex=1,font=3)
 hc2 <- hclust(stats::dist(t(fpkm_log_matrix), method="minkowski"), "ward.D2")
 #par(mar=c(10, 4, 4, 10), pty='s')
-plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by log2(FPKM+1) using Ward's clustering & Euclidean distance")
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
 ```
 ```{r}
 Condition1 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,1], levels = c("Bred", "Virus"))
@@ -112,7 +113,7 @@ ppp <- ggplot(d, aes_string(x="PC1", y="PC2", shape="Condition2", color="group")
 ppp <- ppp + geom_point(size=6)
 plot(ppp)
 ```
-Heatmap to see how cells cluster by cell type or experimental condition.  No replicates because they have been combined. 
+Heatmap to see how cells cluster by cell type or experimental condition. 
 ```{r}
 HEATMAP_HEIGHT <- 45 # inchescol
 HEATMAP_WIDTH  <- 15
@@ -132,7 +133,7 @@ pheatmap(fpkm_log_matrix,
          , fontsize_row=3.5)
 ```
 
-Fit the model and estimate dispersion value.
+Virus: Fit the model and estimate dispersion value.
 ```{r}
 Virus_cols = grep ("Virus", colnames(counts3))
 design_matrix_virus <- model.matrix( ~ Condition2[Virus_cols])
@@ -144,6 +145,8 @@ y_for_DE_virus = estimateDisp(y_for_DE_virus, design=design_matrix_virus)
 plotBCV(y_for_DE_virus)
 fit_virus <- glmFit(y_for_DE_virus, design=design_matrix_virus, dispersion=y_for_DE_virus$trended.dispersion)
 ```
+
+Bred: Fit the model and estimate dispersion value.
 ```{r}
 Bred_cols = grep ("Bred", colnames(counts3))
 design_matrix_bred <- model.matrix( ~ Condition2[Bred_cols])
@@ -192,9 +195,19 @@ colnames(results) = c(
                   , unlist(lapply (colnames(lrt_virus_table), function(x) paste(x, "_virus_KO_vs_WT_baseline", sep="_")))
                   , unlist(lapply (colnames(lrt_bred_table), function(x) paste(x, "_bred_KO_vs_WT_baseline", sep="_"))) )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Downloads/chang/chang_", curr_date, ".xls"), row.names=F, col.names=T, sep="\t")
+write.table(results, paste0("~/Documents/chang/chang_", curr_date, ".xls"), row.names=F, col.names=T, sep="\t")
 
 ```
+
+Look at agreement between different analyses. 
+
+My analysis (edgeR): 
+KO_vs_WT_virus1 
+KO_vs_WT_bred1
+
+NovoGene's analysis: 
+KO_vs_WT_virus2 
+KO_vs_WT_bred2 
 ```{r}
 
 library(UpSetR)
@@ -208,6 +221,7 @@ colSums(upsetr_matrix2)
 upset(upsetr_matrix2, sets = c("KO_vs_WT_virus1", "KO_vs_WT_bred1",  "KO_vs_WT_virus2", "KO_vs_WT_bred2"),sets.bar.color = "#56B4E9", order.by = "freq", empty.intersections = "on")
 
 ```
+Quick sanity check.  
 ```{r}
 #compare fpkm values  check
 qqplot(results$Bred_WT_rep1_counts, counts1$WT73M_readcount[keep])
@@ -217,7 +231,7 @@ cor(results$Virus_WT_rep2_fpkm, counts1$WT113M_fpkm[keep])
 cor(results$Virus_KO_rep2_fpkm, counts1$KO117M_fpkm[keep])
 
 ```
-How do the genes that are unique differ 
+Compare using Venn diagram. 
 ```{r}
 library(limma)
 venn1 = vennCounts(upsetr_matrix2[,c("KO_vs_WT_virus1", "KO_vs_WT_virus2" )])
@@ -226,7 +240,7 @@ vennDiagram(venn1)
 venn2 = vennCounts(upsetr_matrix2[,c("KO_vs_WT_bred1", "KO_vs_WT_bred2")])
 vennDiagram(venn2)
 ```
-Try to use DEseq2 : Virus KO vs WT 
+Try to use DEseq2 package(because that is what NovoGene used) : Virus KO vs WT 
 ```{r}
 library("DESeq2")
 dds_virus <- DESeqDataSetFromMatrix(countData = counts3[, Virus_cols],
@@ -249,6 +263,18 @@ res_bred <- results(dds_bred)
 res_bred
 hist(res_bred$pvalue)
 ```
+The two DESeq2 analyses agree more which makes perfect sense. 
+My analysis (edgeR): 
+KO_vs_WT_virus1 
+KO_vs_WT_bred1
+
+NovoGene's analysis: 
+KO_vs_WT_virus2 
+KO_vs_WT_bred2 
+
+My analysis (DESeq2):
+KO_vs_WT_virus3
+KO_vs_WT_bred3
 
 ```{r}
 
