@@ -349,7 +349,7 @@ library(BSgenome)</code></pre>
 library(BSgenome.Mmusculus.UCSC.mm10.masked)</code></pre>
 <pre><code>## Loading required package: BSgenome.Mmusculus.UCSC.mm10</code></pre>
 <p>Read in data</p>
-<pre class="r"><code>data_DE = read.table(&quot;~/Downloads/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt&quot;, sep=&quot;\t&quot;, fill=T, header=T)
+<pre class="r"><code>data_DE = read.table(&quot;~/Documents/willenbring/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt&quot;, sep=&quot;\t&quot;, fill=T, header=T)
 head(data_DE)</code></pre>
 <pre><code>##                    Symbol
 ## 1                     Lum
@@ -6388,13 +6388,15 @@ head(data_DE2)</code></pre>
   names(myseqs2) = labels
   return(myseqs2)
 }
+
+#background sequences
 myseqs_background = get_promoter_sequences (data_DE2)</code></pre>
 <pre><code>## 'data.frame':    15786 obs. of  4 variables:
 ##  $ chrom  : chr  &quot;chr10&quot; &quot;chr1&quot; &quot;chr16&quot; &quot;chr16&quot; ...
 ##  $ start  : num  9.76e+07 1.65e+08 3.78e+07 4.51e+07 NA ...
 ##  $ end    : num  9.76e+07 1.65e+08 3.78e+07 4.51e+07 NA ...
 ##  $ strand2: chr  &quot;+&quot; &quot;+&quot; &quot;+&quot; &quot;+&quot; ...</code></pre>
-<pre class="r"><code>writeXStringSet(myseqs_background, &quot;~/Downloads/background_promoters.fa&quot;, format=&quot;fasta&quot;)
+<pre class="r"><code>writeXStringSet(myseqs_background, &quot;~/Documents/willenbring/background_promoters.fa&quot;, format=&quot;fasta&quot;)
 myseqs_background</code></pre>
 <pre><code>##   A DNAStringSet instance of length 10187
 ##         width seq                                      names               
@@ -6409,13 +6411,14 @@ myseqs_background</code></pre>
 ## [10185]  1001 TTTTTTTAATTTTCATACA...GGTCTCTCACTCAGTACC chr19||11130876||...
 ## [10186]  1001 TTTGCGTGTCCAATGGGCC...GAGTCACAGAGATTTTCA chrX||135693790||...
 ## [10187]  1001 GAAGCATGCATACAGCTCT...GACTACCACAGAATCTTC chr3||124426040||...</code></pre>
-<pre class="r"><code>myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate.1 &lt; 0.01),])</code></pre>
+<pre class="r"><code># foreground sequences 
+myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate.1 &lt; 0.01),])</code></pre>
 <pre><code>## 'data.frame':    2519 obs. of  4 variables:
 ##  $ chrom  : chr  &quot;chr10&quot; &quot;chr1&quot; &quot;chr16&quot; &quot;chr16&quot; ...
 ##  $ start  : num  9.76e+07 1.65e+08 3.78e+07 4.51e+07 NA ...
 ##  $ end    : num  9.76e+07 1.65e+08 3.78e+07 4.51e+07 NA ...
 ##  $ strand2: chr  &quot;+&quot; &quot;+&quot; &quot;+&quot; &quot;+&quot; ...</code></pre>
-<pre class="r"><code>writeXStringSet(myseqs_foreground, &quot;~/Downloads/foreground_promoters.fa&quot;, format=&quot;fasta&quot;)
+<pre class="r"><code>writeXStringSet(myseqs_foreground, &quot;~/Documents/willenbring/foreground_promoters.fa&quot;, format=&quot;fasta&quot;)
 myseqs_foreground</code></pre>
 <pre><code>##   A DNAStringSet instance of length 1957
 ##        width seq                                       names               
@@ -6433,9 +6436,16 @@ myseqs_foreground</code></pre>
 <pre class="r"><code>#scan for motifs in transfac 
 #Foxa3, Gata4, and Hnf1a or Foxa1/Foxa2/Foxa3 and Hnf4a 
 
+#require(rtfbs)
+#pwm &lt;- read.pwm(&quot;~/Documents/common_resources/transfac_matrix_dat_to_meme.txt&quot;)
+#meme foreground_promoters.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 20 -objfun de -neg background_promoters.fa -revcomp -markov_order 0
+#meme ran successfully in 2393.78 seconds
 #meme fasta.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 14 -objfun classic -revcomp -markov_order 
 #matchPWM
 
+##meme foreground_promoters.fa -dna -oc . -nostatus -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun de  -revcomp  -bfile ______
+
+# meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 
 
 #meme/libexec/meme-5.0.2/transfac2meme ~/Downloads/transfac_for_tara/match/data/matrix.dat &gt; Downloads/transfac_matrix_dat_to_meme.txt
 

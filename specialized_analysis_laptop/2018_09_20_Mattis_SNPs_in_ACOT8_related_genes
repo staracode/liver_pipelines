@@ -1,0 +1,5 @@
+#wget ftp://ftp.ensembl.org/pub/release-93/gtf/homo_sapiens/Homo_sapiens.GRCh38.93.gtf.gz
+import os
+import sys
+
+cmd = "bedtools/bin/intersect -a -b "

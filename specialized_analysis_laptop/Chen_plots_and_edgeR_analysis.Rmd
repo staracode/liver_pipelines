@@ -18,7 +18,7 @@ sessionInfo()
 ```
 Read in files
 ```{r}
-filename = "~/Downloads/readcounts.txt"
+filename = "~/Documents/chen/readcounts.txt"
 counts1 = read.table(filename, header = T, stringsAsFactors = F) 
 rownames(counts1) = counts1$Geneid
 
@@ -128,13 +128,19 @@ cold <- data.frame("Condition"=Condition, "Subject2"=Subject2) #"sample_name"=co
 design_matrix2 <- model.matrix( ~Subject2 + Condition)
 
 ```
+FPKM after combinining samples that are "technical" replicates
+```{r}
+y_combined <- DGEList(counts=counts5)
+fpkm_matrix = rpkm (y_combined, gene.length=counts1[keep,"Length"], log = FALSE)
+```
+
 Heatmap to see how cells cluster by cell type or experimental condition.  No replicates because they have been combined. 
 ```{r}
 HEATMAP_HEIGHT <- 45 # inchescol
 HEATMAP_WIDTH  <- 15
 annotation <- data.frame(Expt = Condition, Celltype=Subject2)
 rownames(annotation) <- colnames(counts5)
-pheatmap(counts5,
+pheatmap(fpkm_matrix,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
          , clustering_distance_rows="correlation" # or: euclidean
@@ -149,7 +155,26 @@ pheatmap(counts5,
 ```
 This heatmap confirms the pattern seen in the dendrogram and PCA plot. 
 
+```{r}
+y_combined <- DGEList(counts=counts5)
+fpkm_matrix = rpkm (y_combined, gene.length=counts1[keep,"Length"], log = FALSE)
+#wwtr1
+fpkm_matrix_wwtr1 = fpkm_matrix[which(rownames(fpkm_matrix) == "ENSG00000018408"), ]
+fpkm_matrix_wwtr1_percent = c(cbind(fpkm_matrix_wwtr1["FocusT"]/fpkm_matrix_wwtr1[ "FocusSC"], fpkm_matrix_wwtr1["PLCT"]/fpkm_matrix_wwtr1[ "PLCSC"], fpkm_matrix_wwtr1["S475T"]/fpkm_matrix_wwtr1[ "S475SC"], fpkm_matrix_wwtr1["S449T"]/fpkm_matrix_wwtr1[ "S449SC"], fpkm_matrix_wwtr1["FocusYT"]/fpkm_matrix_wwtr1[ "FocusSC"], fpkm_matrix_wwtr1["PLCYT"]/fpkm_matrix_wwtr1[ "PLCSC"], fpkm_matrix_wwtr1["S475YT"]/fpkm_matrix_wwtr1[ "S475SC"], fpkm_matrix_wwtr1["S449YT"]/fpkm_matrix_wwtr1[ "S449SC"] ))
+names(fpkm_matrix_wwtr1_percent ) = c("FocusT/SC", "PLCT/SC", "S475T/SC", "S449T/SC", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC")
 
+#barplot(fpkm_matrix_wwtr1, las=2)
+barplot(fpkm_matrix_wwtr1_percent, las=2, cex.names=.7, ylab= "percent KD", main="wwtr1 based on fpkm values")
+
+
+#yap1
+fpkm_matrix_yap1 = fpkm_matrix[which(rownames(fpkm_matrix) == "ENSG00000137693"), ]
+fpkm_matrix_yap1_percent = c(cbind(fpkm_matrix_yap1["FocusY"]/fpkm_matrix_yap1[ "FocusSC"], fpkm_matrix_yap1["PLCY"]/fpkm_matrix_yap1[ "PLCSC"], fpkm_matrix_yap1["S475Y"]/fpkm_matrix_yap1[ "S475SC"], fpkm_matrix_yap1["S449Y"]/fpkm_matrix_yap1[ "S449SC"], fpkm_matrix_yap1["FocusYT"]/fpkm_matrix_yap1[ "FocusSC"], fpkm_matrix_yap1["PLCYT"]/fpkm_matrix_yap1[ "PLCSC"], fpkm_matrix_yap1["S475YT"]/fpkm_matrix_yap1[ "S475SC"], fpkm_matrix_yap1["S449YT"]/fpkm_matrix_yap1[ "S449SC"] ))
+names(fpkm_matrix_yap1_percent ) = c("FocusY/SC", "PLCY/SC", "S475Y/SC", "S449Y/SC", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC")
+#barplot(fpkm_matrix_yap1, las=2)
+barplot(fpkm_matrix_yap1_percent, las=2,  cex.names=.7, ylab= "percent KD", main = "yap1 based on fpkm values")
+
+```
 Fit the model and estimate dispersion value.
 ```{r}
 y_for_DE <- DGEList(counts=counts5)
