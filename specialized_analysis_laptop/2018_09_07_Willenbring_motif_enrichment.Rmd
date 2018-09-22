@@ -26,8 +26,6 @@ head(data_DE)
 #significantly DE between Heps and baselien MFs
 #data_DE_sig = data_DE[which(data_DE[, "False.discovery.rate"] <= 0.01),]
 data_DE_sig = data_DE # do this for now
-#ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
-#chr1_genes <- getBM(attributes=c('ensembl_gene_id','ensembl_transcript_id','external_gene_name','chromosome_name','start_position','end_position'), filters ='chromosome_name', values ="1", mart = ensembl)
 
 ```
 ```{r}
@@ -138,7 +136,7 @@ writeXStringSet(myseqs_background, "~/Documents/willenbring/background_promoters
 myseqs_background
 
 # foreground sequences 
-myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate.1 < 0.01),])
+myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate < 0.01),])
 writeXStringSet(myseqs_foreground, "~/Documents/willenbring/foreground_promoters.fa", format="fasta")
 myseqs_foreground
 
@@ -155,12 +153,15 @@ myseqs_foreground
 #meme fasta.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 14 -objfun classic -revcomp -markov_order 
 #matchPWM
 
-##meme foreground_promoters.fa -dna -oc . -nostatus -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun de  -revcomp  -bfile ______
+##meme foreground_promoters.fa -dna -oc . -nostatus -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun classic    -bfile ______
 
-# meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 
+# meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 Documents/willenbring/background_promoters.fa Documents/willenbring/background_markov_model.txt
+#10187 1001 1001 1001.0 10197187
+
+#meme/bin/meme Documents/willenbring/foreground_promoters.fa -dna -oc .  -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun classic  -bfile Documents/willenbring/background_markov_model.txt
 
 #meme/libexec/meme-5.0.2/transfac2meme ~/Downloads/transfac_for_tara/match/data/matrix.dat > Downloads/transfac_matrix_dat_to_meme.txt
-
+#ZOOPS: Zero or one site per sequence
 
 #scan for motifs in jaspar
 

@@ -423,9 +423,7 @@ head(data_DE)</code></pre>
 ## 6                 Sparcl1</code></pre>
 <pre class="r"><code>#significantly DE between Heps and baselien MFs
 #data_DE_sig = data_DE[which(data_DE[, &quot;False.discovery.rate&quot;] &lt;= 0.01),]
-data_DE_sig = data_DE # do this for now
-#ensembl = useEnsembl(biomart=&quot;ensembl&quot;, dataset=&quot;mmusculus_gene_ensembl&quot;)
-#chr1_genes &lt;- getBM(attributes=c('ensembl_gene_id','ensembl_transcript_id','external_gene_name','chromosome_name','start_position','end_position'), filters ='chromosome_name', values =&quot;1&quot;, mart = ensembl)</code></pre>
+data_DE_sig = data_DE # do this for now</code></pre>
 <pre class="r"><code>ensembl = useEnsembl(biomart=&quot;ensembl&quot;, dataset=&quot;mmusculus_gene_ensembl&quot;)
 attributes = listAttributes(ensembl)
 attributes </code></pre>
@@ -6412,15 +6410,15 @@ myseqs_background</code></pre>
 ## [10186]  1001 TTTGCGTGTCCAATGGGCC...GAGTCACAGAGATTTTCA chrX||135693790||...
 ## [10187]  1001 GAAGCATGCATACAGCTCT...GACTACCACAGAATCTTC chr3||124426040||...</code></pre>
 <pre class="r"><code># foreground sequences 
-myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate.1 &lt; 0.01),])</code></pre>
-<pre><code>## 'data.frame':    2519 obs. of  4 variables:
+myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate &lt; 0.01),])</code></pre>
+<pre><code>## 'data.frame':    2355 obs. of  4 variables:
 ##  $ chrom  : chr  &quot;chr10&quot; &quot;chr1&quot; &quot;chr16&quot; &quot;chr16&quot; ...
 ##  $ start  : num  9.76e+07 1.65e+08 3.78e+07 4.51e+07 NA ...
 ##  $ end    : num  9.76e+07 1.65e+08 3.78e+07 4.51e+07 NA ...
 ##  $ strand2: chr  &quot;+&quot; &quot;+&quot; &quot;+&quot; &quot;+&quot; ...</code></pre>
 <pre class="r"><code>writeXStringSet(myseqs_foreground, &quot;~/Documents/willenbring/foreground_promoters.fa&quot;, format=&quot;fasta&quot;)
 myseqs_foreground</code></pre>
-<pre><code>##   A DNAStringSet instance of length 1957
+<pre><code>##   A DNAStringSet instance of length 1874
 ##        width seq                                       names               
 ##    [1]  1001 CAAGCTATCTTTAAAGGAA...AATGAAAAACAGGTCAGAC chr10||97564128||...
 ##    [2]  1001 AACCCTTCTCAGCAATTAC...GTTGGATCCAGTTCACCCA chr1||164795644||...
@@ -6428,11 +6426,11 @@ myseqs_foreground</code></pre>
 ##    [4]  1001 TCACATTCATATGCGTGCA...CACGTGGAACTATAAATAG chr16||45092402||...
 ##    [5]  1001 TGATAGACCTTATAATCAC...GTTCACTCCATGCATGCTG chr5||104113733||...
 ##    ...   ... ...
-## [1953]  1001 TGCTTGAATACAAATATGT...CAAAGAGGTAAGCATTATT chr7||14446584||1...
-## [1954]  1001 TGTTTTGTTTTGTTTTAAT...CACACTCTGATCCAGCAAA chr3||146569426||...
-## [1955]  1001 CTGTGGTCAATACTATTGC...TAAATGTCGAACTGAGTCC chr2||126551407||...
-## [1956]  1001 TCCAGATATGGGAAGGGGA...TGCCTAGAGAAGAGAGTAC chr5||145879964||...
-## [1957]  1001 GGACTGGGTGTGGCTTTAA...CTCCTCTCTCCCTTCTAGA chr3||81976202||8...</code></pre>
+## [1870]  1001 TGCTTGAATACAAATATGT...CAAAGAGGTAAGCATTATT chr7||14446584||1...
+## [1871]  1001 TGTTTTGTTTTGTTTTAAT...CACACTCTGATCCAGCAAA chr3||146569426||...
+## [1872]  1001 CTGTGGTCAATACTATTGC...TAAATGTCGAACTGAGTCC chr2||126551407||...
+## [1873]  1001 TCCAGATATGGGAAGGGGA...TGCCTAGAGAAGAGAGTAC chr5||145879964||...
+## [1874]  1001 GGACTGGGTGTGGCTTTAA...CTCCTCTCTCCCTTCTAGA chr3||81976202||8...</code></pre>
 <pre class="r"><code>#scan for motifs in transfac 
 #Foxa3, Gata4, and Hnf1a or Foxa1/Foxa2/Foxa3 and Hnf4a 
 
@@ -6443,12 +6441,15 @@ myseqs_foreground</code></pre>
 #meme fasta.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 14 -objfun classic -revcomp -markov_order 
 #matchPWM
 
-##meme foreground_promoters.fa -dna -oc . -nostatus -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun de  -revcomp  -bfile ______
+##meme foreground_promoters.fa -dna -oc . -nostatus -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun classic    -bfile ______
 
-# meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 
+# meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 Documents/willenbring/background_promoters.fa Documents/willenbring/background_markov_model.txt
+#10187 1001 1001 1001.0 10197187
+
+#meme/bin/meme Documents/willenbring/foreground_promoters.fa -dna -oc .  -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun classic  -bfile Documents/willenbring/background_markov_model.txt
 
 #meme/libexec/meme-5.0.2/transfac2meme ~/Downloads/transfac_for_tara/match/data/matrix.dat &gt; Downloads/transfac_matrix_dat_to_meme.txt
-
+#ZOOPS: Zero or one site per sequence
 
 #scan for motifs in jaspar
 
