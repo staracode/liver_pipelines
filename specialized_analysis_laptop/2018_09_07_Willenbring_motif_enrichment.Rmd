@@ -146,12 +146,10 @@ myseqs_foreground
 #scan for motifs in transfac 
 #Foxa3, Gata4, and Hnf1a or Foxa1/Foxa2/Foxa3 and Hnf4a 
 
-#require(rtfbs)
-#pwm <- read.pwm("~/Documents/common_resources/transfac_matrix_dat_to_meme.txt")
+
 #meme foreground_promoters.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 20 -objfun de -neg background_promoters.fa -revcomp -markov_order 0
 #meme ran successfully in 2393.78 seconds
 #meme fasta.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 14 -objfun classic -revcomp -markov_order 
-#matchPWM
 
 ##meme foreground_promoters.fa -dna -oc . -nostatus -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun classic    -bfile ______
 
@@ -169,7 +167,86 @@ myseqs_foreground
 
 #motif enrichment using meme 
 
+
+
+
+#find more tf that are expressed
+
+# go back and fix entrez ids that didn't match 
+
+
 ```
 
 ```{r}
+library(Biostrings)
+library (MotifDb)
+require(rtfbs)
+#require(rtfbs)
+#pwm <- read.pwm("~/Documents/common_resources/transfac_matrix_dat_to_meme.txt")
+set = query (MotifDb, 'hsapiens') 
+set2 = query(set, "FoxA3")
+set3 = query(set, "HNF1A")
+set4 = query(set, "GATA4")
+
+fg2 = lapply (myseqs_foreground, function(x) matchPWM(set2[[1]], x))
+bg2 = lapply (myseqs_background, function(x) matchPWM(set2[[1]], x))
+
+fg3 = lapply (myseqs_foreground, function(x) matchPWM(set3[[1]], x))
+bg3 = lapply (myseqs_background, function(x) matchPWM(set3[[1]], x))
+
+fg4 = lapply (myseqs_foreground, function(x) matchPWM(set4[[1]], x))
+bg4 = lapply (myseqs_background, function(x) matchPWM(set4[[1]], x))
+
+fg2n = lapply (myseqs_foreground, function(x) countPWM(set2[[1]], x))
+bg2n = lapply (myseqs_background, function(x) countPWM(set2[[1]], x))
+
+fg3n = lapply (myseqs_foreground, function(x) countPWM(set3[[1]], x))
+bg3n = lapply (myseqs_background, function(x) countPWM(set3[[1]], x))
+
+fg4n = lapply (myseqs_foreground, function(x) countPWM(set4[[1]], x))
+bg4n = lapply (myseqs_background, function(x) countPWM(set4[[1]], x))
+
+
+sum(unlist(fg4n))
+sum(unlist(fg3n))
+sum(unlist(fg2n))
+
+which(fg4n==0)
+sum(unlist(bg4n))
+sum(unlist(bg3n))
+sum(unlist(bg2n))
+
+#fisher test
+     hit no hit
+     ---------------
+#DE
+#noDE
+       
+        length(myseqs_background)
+[1] 10187
+> length(myseqs_foreground)
+     
+    > length(which(fg4n==0))
+[1] 145
+> length(which(fg4n>0))
+[1] 1729
+> length(which(bg4n>0))
+[1] 9436
+> length(which(bg4n==0))
+[1] 751
+     
+     
+     fisher.test(data.frame(rbind(c(1729, 145), c(9436, 751))))
+     
+rbind(c(length(which(fg4n>0)), length(which(fg4n==0))), c(length(which(bg4n>0)), length(which(bg4n==0)) ))
+[1] 145
+> length(which(fg4n>0))
+[1] 1729
+> length(which(bg4n>0))
+[1] 9436
+> length(which(bg4n==0))
+[1] 751
+
+rbind(c(length(which(fg2n>0)), length(which(fg2n==0))), c(length(which(bg2n>0)), length(which(bg2n==0)) ))
+
 ```
