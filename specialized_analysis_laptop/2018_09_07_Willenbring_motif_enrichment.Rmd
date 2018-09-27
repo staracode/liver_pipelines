@@ -140,6 +140,8 @@ myseqs_foreground = get_promoter_sequences (data_DE2[which(data_DE2$False.discov
 writeXStringSet(myseqs_foreground, "~/Documents/willenbring/foreground_promoters.fa", format="fasta")
 myseqs_foreground
 
+myseqs_notforeground = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate >= 0.01),])
+
 ```
 
 ```{r}
@@ -230,7 +232,45 @@ fisher.test( cbind(c(length(which(fg2n>0)), length(which(fg2n==0))), c(length(wh
 
 ```
 ```{r}
+# 
+# expressedgenes = data_DE2[which(!(is.na(data_DE2[,"MFs.1"]))),"Symbol"]  #hopefully these are all genes expressed (assuming someone did the filtering if they are in the excel file)
+# matches_fg_per_gene = list()
+# matches_bg_per_gene = list()
+# tests_per_gene = list()
+# for ( gene in expressedgenes ) {
+#   motif = MotifDb [grep (gene, values (MotifDb)$geneSymbol, ignore.case=TRUE)]
+#   if ( length(motif) >0 ) {
+#     matches_fg = list()  #multiple motifs per gene 
+#     matches_bg = list()
+#     test = list()
+#     for (x in 1:length(motif)) {
+#       motif_pwm = motif[[x]]
+#       matches_fg[[x]] = lapply (myseqs_foreground, function(x) countPWM(motif_pwm, x))
+#       matches_bg[[x]] = lapply (myseqs_background, function(x) countPWM(motif_pwm, x))
+#       test_results = fisher.test( cbind(c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0)) )) )
+#       test[[x]] = c(gene, x, test_results$p.value, c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0))) )
+#     }
+#     matches_fg_per_gene[[gene]] = matches_fg
+#     matches_bg_per_gene[[gene]] = matches_bg
+#     tests_per_gene[[gene]] = test
+#     
+#     
+#   }
+# }
+# 
+# all_fisher_tests = matrix( unlist(tests_per_gene), nc=7, byrow =T)
+# # 
+```
 
+```{r}
+#write.table(all_fisher_tests, "Downloads/all_fisher_tests.xls", sep="\t", quote=F, row.names = F, col.names = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit"))
+#matches_fg_per_gene$Hnf4a[[1]]
+
+#save(matches_fg_per_gene, matches_bg_per_gene, tests_per_gene, file = "Downloads/fisher_first_attempt.Robj")
+```
+
+```{r}
+#redo 
 expressedgenes = data_DE2[which(!(is.na(data_DE2[,"MFs.1"]))),"Symbol"]  #hopefully these are all genes expressed (assuming someone did the filtering if they are in the excel file)
 matches_fg_per_gene = list()
 matches_bg_per_gene = list()
@@ -244,22 +284,20 @@ for ( gene in expressedgenes ) {
     for (x in 1:length(motif)) {
       motif_pwm = motif[[x]]
       matches_fg[[x]] = lapply (myseqs_foreground, function(x) countPWM(motif_pwm, x))
-      matches_bg[[x]] = lapply (myseqs_background, function(x) countPWM(motif_pwm, x))
+      matches_bg[[x]] = lapply (myseqs_notforeground, function(x) countPWM(motif_pwm, x))
       test_results = fisher.test( cbind(c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0)) )) )
       test[[x]] = c(gene, x, test_results$p.value, c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0))) )
     }
     matches_fg_per_gene[[gene]] = matches_fg
     matches_bg_per_gene[[gene]] = matches_bg
     tests_per_gene[[gene]] = test
-    
-    
   }
 }
-
 all_fisher_tests = matrix( unlist(tests_per_gene), nc=7, byrow =T)
-
 ```
 
 ```{r}
-write.table(all_fisher_tests, "Downloads/all_fisher_tests.xls", sep="\t", quote=F, row.names = F, col.names = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit"))
+length(myseqs_foreground) + length(myseqs_notforeground)
+
 ```
+
