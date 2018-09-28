@@ -294,10 +294,23 @@ for ( gene in expressedgenes ) {
   }
 }
 all_fisher_tests = matrix( unlist(tests_per_gene), nc=7, byrow =T)
+colnames(all_fisher_tests) = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit")
+```
+
+```{r}
+#list of motif counts per promoter
+for (gene in matches_fg_per_gene) {
+   for (motif in matches_fg_per_gene[[gene]] ) {
+     counts = matches_fg_per_gene[[gene]][[motif]]
+     print (counts)
+   }
+}
+
 ```
 
 ```{r}
 length(myseqs_foreground) + length(myseqs_notforeground)
 
+fisher = lapply(seq(1, nrow(all_fisher_tests)), function(x)  cbind (c(all_fisher_tests[x, "fg_hit"], all_fisher_tests[x, "fg_no_hit"]), c(all_fisher_tests[x, "bg_hit"], all_fisher_tests[x, "bg_no_hit"]) ))
 ```
 

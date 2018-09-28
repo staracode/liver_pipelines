@@ -3,15 +3,17 @@ import os
 
 #read in fastq metadata table
 #ls  /Volumes/My\ Passport/*/CleanData/*/*fq.gz > metadata_Aras_Mattis_2018_08_01.txt
-metadata_file = "/Users/tarafriedrich/metadata_Aras_Mattis_2018_08_01.txt"
-metadata = pd.read_csv(metadata_file, names=["location"])
+metadata_file = "/Users/tfriedrich/Documents/Mattis/metadata_Aras_Mattis_2018_08_01v3.txt"
+#metadata = pd.read_csv(metadata_file, names=["Location", "Name", "cell type", "Genotype", "dox treatment"], sep="\t")
+metadata = pd.read_csv(metadata_file, sep="\t")
 #for this project only
-full_filenames = metadata["location"].tolist()
-filenames = [x.split("/")[-1] for x in full_filenames]
+full_filenames = metadata["Location"].tolist()
+#filenames = [x.split("/")[-1] for x in full_filenames]
 #os.system("mkdir ~/Mattis_fastq")
 for name in full_filenames: 
     newname = name.replace(" ", "\ ")
-    print "rsync -avPh " + newname + " tfriedrich@chef.compbio.ucsf.edu:~/Mattis_fastq"
+    #print "rsync -avPh " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
+    print "scp " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
 
 
 #genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR 
@@ -37,10 +39,10 @@ for name in full_filenames:
 #fastqc #quality control check 
 #./fastqc ~/Mattis_fastq/160715_I136_FCHCCTHBBXX_L6_WHHUMrkeRAADRAAPEI-209_1.fq.gz 
 #starr align to human 
-software_source/FastQC/fastqc
-software_source/ExpressionAnalysis-ea-utils-bd148d4/clipper/fastq-mcf
-./multiqc 
-genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR
-software_source/subread-1.6.2-source/bin/featureCounts
-heatmap 
+#software_source/FastQC/fastqc
+#software_source/ExpressionAnalysis-ea-utils-bd148d4/clipper/fastq-mcf
+#./multiqc 
+#genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR
+#software_source/subread-1.6.2-source/bin/featureCounts
+#heatmap 
 
