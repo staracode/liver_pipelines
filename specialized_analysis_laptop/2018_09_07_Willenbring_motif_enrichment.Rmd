@@ -311,6 +311,11 @@ for (gene in matches_fg_per_gene) {
 ```{r}
 length(myseqs_foreground) + length(myseqs_notforeground)
 
-fisher = lapply(seq(1, nrow(all_fisher_tests)), function(x)  cbind (c(all_fisher_tests[x, "fg_hit"], all_fisher_tests[x, "fg_no_hit"]), c(all_fisher_tests[x, "bg_hit"], all_fisher_tests[x, "bg_no_hit"]) ))
+#all_fisher_tests[,"fg_hit"] = as.numeric(as.character(all_fisher_tests[,"fg_hit"]))
+#all_fisher_tests[,"fg_no_hit"] = as.numeric(as.character(all_fisher_tests[,"fg_no_hit"]))
+#all_fisher_tests[,"bg_hit"] = as.numeric(as.character(all_fisher_tests[,"bg_hit"]))
+#all_fisher_tests[,"bg_no_hit"] = as.numeric(as.character(all_fisher_tests[,"bg_no_hit"]))
+
+#fisher = lapply(seq(1, nrow(all_fisher_tests)), function(x)  cbind (c(all_fisher_tests[x, "fg_hit"], all_fisher_tests[x, "fg_no_hit"]), c(all_fisher_tests[x, "bg_hit"], all_fisher_tests[x, "bg_no_hit"]) ))
 ```
 
