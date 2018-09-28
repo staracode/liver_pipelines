@@ -298,6 +298,11 @@ colnames(all_fisher_tests) = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_h
 ```
 
 ```{r}
+save(matches_fg_per_gene, matches_bg_per_gene, tests_per_gene, file = "Downloads/fisher_second_attempt.Robj")
+write.table(all_fisher_tests, "Downloads/all_fisher_tests_v2.xls", sep="\t", quote=F, row.names = F, col.names = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit"))
+```
+
+```{r}
 #list of motif counts per promoter
 for (gene in matches_fg_per_gene) {
    for (motif in matches_fg_per_gene[[gene]] ) {
