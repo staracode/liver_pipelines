@@ -17,6 +17,9 @@ library(BSgenome)
 #available.genomes()
 #biocLite("BSgenome.Mmusculus.UCSC.mm10.masked")
 library(BSgenome.Mmusculus.UCSC.mm10.masked)
+library(Biostrings)
+library (MotifDb)
+require(rtfbs)
 ```
 
 Read in data from supplement containing micrarray differentially expressed genes.
@@ -56,51 +59,6 @@ data_DE2 = cbind(annotation_info[index,], data_DE)
 head(data_DE2)
 ```
 
-
-
-
-```{r}
-### Bimap interface:
-#x <- org.Mm.egCHRLOC
-## Get the entrez gene identifiers that are mapped to chromosome locations
-#mapped_genes <- mappedkeys(x)
-## Convert to a list
-#xx <- as.list(x[mapped_genes])
-#if(length(xx) > 0) {
-#      # Get the CHRLOC for the first five genes
-#      xx[1:5]
-#      # Get the first one
-#      xx[[1]]
-#}
-
-# x_END <- org.Mm.egCHRLOCEND
-# mapped_genes_END <- mappedkeys(x_END)
-# xx_END <- as.list(x[mapped_genes_END])
-# 
-# annotation_END = ldply(xx_END, data.frame)
-# annotation = ldply(xx, data.frame)
-# chr = unlist(lapply(xx, names))
-# annotation2 = cbind(annotation, annotation_END, chr)
-# colnames(annotation2) = c("gene_id1", "start_loc", "gene_id2", "end_loc", "chr")
-
-
-#  --------------------------X-->>>>>>>>
-#  ----start----------------end->>>>>>>>  (+)
-
-#  <<<<<<<-X------------------------
-#  <<<<<<<-start----------------end-      (-)
-
-# annotation2[, "chrom"] = paste0("chr", annotation2$chr)
-# annotation2[, "start"] = unlist(lapply (annotation2$start_loc, function(x) abs(x) - 1000  ))
-# annotation2[, "end"] = unlist(lapply (annotation2$start_loc, function(x) abs(x) ))
-# annotation2[, "strand"] = unlist(lapply (annotation2$start_loc, function(x) if (x < 0) { "-" } else{ "+" } ))
-# 
-# index = match (data_DE$Entrez, annotation2$.id)
-# data_DE2 = cbind(annotation2[index,], data_DE)
-# 
-# #lots of entrez IDs missing because they look like this "15507 /// 15508"
-# head(data_DE2)
-```
 
 Function to extract relevant promoter sequences for genes of interest
 
@@ -147,130 +105,26 @@ myseqs_notforeground = get_promoter_sequences (data_DE2[which(data_DE2$False.dis
 ```
 
 ```{r}
-
 # de novo motif search 
-#meme foreground_promoters.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 20 -objfun de -neg background_promoters.fa -revcomp -markov_order 0
-#meme ran successfully in 2393.78 seconds
-#####memesuitetool
-######meme fasta.fa -dna -oc . -nostatus -time 18000 -mod zoops -nmotifs 3 -minw 6 -maxw 14 -objfun classic -revcomp -markov_order 
-###################
 
 # meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 Documents/willenbring/background_promoters.fa Documents/willenbring/background_markov_model.txt
 #10187 1001 1001 1001.0 10197187
 
 #meme/bin/meme Documents/willenbring/foreground_promoters.fa -dna -oc ./meme3  -mod zoops -nmotifs 3 -minw 6 -maxw 12 -objfun classic  -bfile Documents/willenbring/background_markov_model.txt
 
-#convert transfac to meme style format
-#meme/libexec/meme-5.0.2/transfac2meme ~/Downloads/transfac_for_tara/match/data/matrix.dat > Downloads/transfac_matrix_dat_to_meme.txt
 #ZOOPS: Zero or one site per sequence
 
+#convert transfac to meme style format
+#meme/libexec/meme-5.0.2/transfac2meme ~/Downloads/transfac_for_tara/match/data/matrix.dat > Downloads/transfac_matrix_dat_to_meme.txt
+
+#TODO
 #scan for motifs in jaspar
-
 #motifdiverge
-
-#motif enrichment using meme 
-
-
-
-
-#find more tf that are expressed
-
 # go back and fix entrez ids that didn't match 
 
-
 ```
 
 ```{r}
-#scan for motifs in transfac 
-#Foxa3, Gata4, and Hnf1a or Foxa1/Foxa2/Foxa3 and Hnf4a 
-
-library(Biostrings)
-library (MotifDb)
-require(rtfbs)
-
-#pwm <- read.pwm("~/Documents/common_resources/transfac_matrix_dat_to_meme.txt")
-#set = query (MotifDb, 'hsapiens') 
-set = query (MotifDb, 'mmusculus') 
-set2 = query(set, "FoxA3")
-set3 = query(set, "HNF1A")
-set4 = query(set, "GATA4")
-
-fg2 = lapply (myseqs_foreground, function(x) matchPWM(set2[[1]], x))
-bg2 = lapply (myseqs_background, function(x) matchPWM(set2[[1]], x))
-
-fg3 = lapply (myseqs_foreground, function(x) matchPWM(set3[[1]], x))
-bg3 = lapply (myseqs_background, function(x) matchPWM(set3[[1]], x))
-
-fg4 = lapply (myseqs_foreground, function(x) matchPWM(set4[[1]], x))
-bg4 = lapply (myseqs_background, function(x) matchPWM(set4[[1]], x))
-
-fg2n = lapply (myseqs_foreground, function(x) countPWM(set2[[1]], x))
-bg2n = lapply (myseqs_background, function(x) countPWM(set2[[1]], x))
-
-fg3n = lapply (myseqs_foreground, function(x) countPWM(set3[[1]], x))
-bg3n = lapply (myseqs_background, function(x) countPWM(set3[[1]], x))
-
-fg4n = lapply (myseqs_foreground, function(x) countPWM(set4[[1]], x))
-bg4n = lapply (myseqs_background, function(x) countPWM(set4[[1]], x))
-
-```
-
-```{r}
-sum(unlist(fg4n))
-sum(unlist(fg3n))
-sum(unlist(fg2n))
-
-sum(unlist(bg4n))
-sum(unlist(bg3n))
-sum(unlist(bg2n))
-       
-length(myseqs_background)
-length(myseqs_foreground)
-
-
-fisher.test( cbind(c(length(which(fg4n>0)), length(which(fg4n==0))), c(length(which(bg4n>0)), length(which(bg4n==0)) )))
-
-fisher.test( cbind(c(length(which(fg2n>0)), length(which(fg2n==0))), c(length(which(bg2n>0)), length(which(bg2n==0)) )) )
-
-```
-```{r}
-# 
-# expressedgenes = data_DE2[which(!(is.na(data_DE2[,"MFs.1"]))),"Symbol"]  #hopefully these are all genes expressed (assuming someone did the filtering if they are in the excel file)
-# matches_fg_per_gene = list()
-# matches_bg_per_gene = list()
-# tests_per_gene = list()
-# for ( gene in expressedgenes ) {
-#   motif = MotifDb [grep (gene, values (MotifDb)$geneSymbol, ignore.case=TRUE)]
-#   if ( length(motif) >0 ) {
-#     matches_fg = list()  #multiple motifs per gene 
-#     matches_bg = list()
-#     test = list()
-#     for (x in 1:length(motif)) {
-#       motif_pwm = motif[[x]]
-#       matches_fg[[x]] = lapply (myseqs_foreground, function(x) countPWM(motif_pwm, x))
-#       matches_bg[[x]] = lapply (myseqs_background, function(x) countPWM(motif_pwm, x))
-#       test_results = fisher.test( cbind(c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0)) )) )
-#       test[[x]] = c(gene, x, test_results$p.value, c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0))) )
-#     }
-#     matches_fg_per_gene[[gene]] = matches_fg
-#     matches_bg_per_gene[[gene]] = matches_bg
-#     tests_per_gene[[gene]] = test
-#     
-#     
-#   }
-# }
-# 
-# all_fisher_tests = matrix( unlist(tests_per_gene), nc=7, byrow =T)
-# # 
-```
-
-```{r}
-#write.table(all_fisher_tests, "Documents/Willenbring/motif_analysis_2018_09/TF_motifs_fisher_tests.xls", sep="\t", quote=F, row.names = F, col.names = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit"))
-#matches_fg_per_gene$Hnf4a[[1]]
-
-#save(matches_fg_per_gene, matches_bg_per_gene, tests_per_gene, file = "Documents/Willenbring/motif_analysis_2018_09/fisher_first_attempt.Robj")
-```
-
 Scan for known motifs of genes that are expressed in MFs.  Takes a long time to run. 
 ```{r}
 # redo fisher test (should have compared foreground to background-foreground instead of foreground to background)
@@ -302,9 +156,10 @@ colnames(all_fisher_tests) = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_h
 Save results 
 ```{r}
 #save(matches_fg_per_gene, matches_bg_per_gene, tests_per_gene, file = "Documents/Willenbring/fisher_second_attempt.Robj")
-#write.table(all_fisher_tests, "Documents/Willenbring/all_fisher_tests_v2.xls", sep="\t", quote=F, row.names = F, col.names = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit"))
+#write.table(all_fisher_tests, "Documents/Willenbring/motif_analysis_2018_09/TF_motif_fisher_tests_v2.xls", sep="\t", quote=F, row.names = F, col.names = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit"))
 ```
 
+We can upload the results of the fisher test instead of re-running it.  
 ```{r}
 load("~/Documents/Willenbring/motif_analysis_2018_09/fisher_second_attempt.Robj")
 
@@ -312,16 +167,18 @@ load("~/Documents/Willenbring/motif_analysis_2018_09/fisher_second_attempt.Robj"
 temp = do.call(paste, c(matches_fg_per_gene, names(matches_fg_per_gene)))
 
 ```
-Upload the results 
+
 ```{r}
 #investigate this. probably because not all genes could be found in ensembl
 length(myseqs_foreground) + length(myseqs_notforeground) != length(myseqs_background)
 
-#all_fisher_tests[,"fg_hit"] = as.numeric(as.character(all_fisher_tests[,"fg_hit"]))
-#all_fisher_tests[,"fg_no_hit"] = as.numeric(as.character(all_fisher_tests[,"fg_no_hit"]))
-#all_fisher_tests[,"bg_hit"] = as.numeric(as.character(all_fisher_tests[,"bg_hit"]))
-#all_fisher_tests[,"bg_no_hit"] = as.numeric(as.character(all_fisher_tests[,"bg_no_hit"]))
-
-#fisher = lapply(seq(1, nrow(all_fisher_tests)), function(x)  cbind (c(all_fisher_tests[x, "fg_hit"], all_fisher_tests[x, "fg_no_hit"]), c(all_fisher_tests[x, "bg_hit"], all_fisher_tests[x, "bg_no_hit"]) ))
 ```
 
+```{r}
+fisher_test_multiple_testing_correction = read.table("~/Documents/Willenbring/motif_analysis_2018_09/all_fisher_tests_v2.xls", header=T)
+fisher_test_multiple_testing_correction[,'corrected_pvalue'] = p.adjust(fisher_test_multiple_testing_correction$fisher_test_pvalue, method="BH")
+
+length(which(fisher_test_multiple_testing_correction$corrected_pvalue <= 0.05))
+
+write.table(fisher_test_multiple_testing_correction, "Documents/Willenbring/motif_analysis_2018_09/TF_motif_fisher_tests_v2_adjusted.xls", sep="\t", quote=F, row.names = F, col.names = T)
+}
