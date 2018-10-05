@@ -7,6 +7,7 @@ setup packages
 ```{r }
 library(plyr)
 library(dplyr) #order matters; load after loading plyr
+# for annotation retrieval: 
 library(biomaRt)
 library(org.Mm.eg.db)
 sessionInfo()
@@ -17,6 +18,8 @@ library(BSgenome)
 #available.genomes()
 #biocLite("BSgenome.Mmusculus.UCSC.mm10.masked")
 library(BSgenome.Mmusculus.UCSC.mm10.masked)
+
+# for motif analysis:
 library(Biostrings)
 library (MotifDb)
 require(rtfbs)
@@ -51,6 +54,8 @@ annotation_info[which(annotation_info[, "chrom"] == "chrMT"), "chrom"] = "chrM"
 annotation_info[, "start"] = unlist(lapply (seq(1, nrow(annotation_info)),  function(x) if (annotation_info[x,"strand"] < 0) { annotation_info[x,"transcript_end"] } else{ annotation_info[x, "transcript_start"] -1000 }  ))
 annotation_info[, "end"] = unlist(lapply (seq(1, nrow(annotation_info)),  function(x) if ( annotation_info[x, "strand"] < 0 ) {annotation_info[x, "transcript_end"] +1000} else{annotation_info[x,  "transcript_start"]}  ))
 annotation_info[, "strand2"] = unlist(lapply (annotation_info$strand, function(x) if (x < 0) { "-" } else{ "+" } ))
+
+#checked these coordiantes in the genome browser
 
 index = match (data_DE$Entrez, annotation_info$entrezgene)
 data_DE2 = cbind(annotation_info[index,], data_DE)
@@ -123,8 +128,6 @@ myseqs_notforeground = get_promoter_sequences (data_DE2[which(data_DE2$False.dis
 # go back and fix entrez ids that didn't match 
 
 ```
-
-```{r}
 Scan for known motifs of genes that are expressed in MFs.  Takes a long time to run. 
 ```{r}
 # redo fisher test (should have compared foreground to background-foreground instead of foreground to background)
@@ -153,6 +156,7 @@ for ( gene in expressedgenes ) {
 all_fisher_tests = matrix( unlist(tests_per_gene), nc=7, byrow =T)
 colnames(all_fisher_tests) = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit")
 ```
+
 Save results 
 ```{r}
 #save(matches_fg_per_gene, matches_bg_per_gene, tests_per_gene, file = "Documents/Willenbring/fisher_second_attempt.Robj")
@@ -173,7 +177,7 @@ temp = do.call(paste, c(matches_fg_per_gene, names(matches_fg_per_gene)))
 length(myseqs_foreground) + length(myseqs_notforeground) != length(myseqs_background)
 
 ```
-
+Adjust p-values. 
 ```{r}
 fisher_test_multiple_testing_correction = read.table("~/Documents/Willenbring/motif_analysis_2018_09/all_fisher_tests_v2.xls", header=T)
 fisher_test_multiple_testing_correction[,'corrected_pvalue'] = p.adjust(fisher_test_multiple_testing_correction$fisher_test_pvalue, method="BH")
