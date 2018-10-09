@@ -185,4 +185,75 @@ fisher_test_multiple_testing_correction[,'corrected_pvalue'] = p.adjust(fisher_t
 length(which(fisher_test_multiple_testing_correction$corrected_pvalue <= 0.05))
 
 write.table(fisher_test_multiple_testing_correction, "Documents/Willenbring/motif_analysis_2018_09/TF_motif_fisher_tests_v2_adjusted.xls", sep="\t", quote=F, row.names = F, col.names = T)
+}   
+```
+
+
+```{r}
+
+load("~/Documents/willenbring/motif_analysis_2018_09/fisher_second_attempt.Robj")
+tf_matrix = list()
+inc = 1
+for (tf in matches_fg_per_gene){
+  tf_matrix[[inc]] =  matrix(unlist(tf), byrow=T, nc=length(tf))
+  inc = inc + 1
 }
+
+tf_names = list()
+inc = 1
+for (tfname in  names(matches_fg_per_gene)){
+  length_value = length(matches_fg_per_gene[[tfname]])
+  for (x in 1:length_value){
+    tf_names[[inc]] = paste(tfname,x, sep="_" )
+    inc = inc + 1
+  }
+}
+
+tf_matrix2 = do.call(cbind, tf_matrix)
+dim(tf_matrix2)
+rownames(tf_matrix2) = names(matches_fg_per_gene$Ace[[1]])
+colnames(tf_matrix2) = unlist(tf_names)
+
+```
+
+```{r}
+test1 = data_DE2[which(data_DE2$Fold.change..log2.<0.05), ]
+test2 = test1[which(!is.na(test1$chromosome_name)),]
+
+
+promoter_names = paste(test2$chrom, test2$start, test2$end, test2$strand2, sep="||")
+index = match( rownames(tf_matrix2), promoter_names)
+#tf_matrix3 = data.frame(tf_matrix2[,], test2[index, "Fold.change..log2."] )
+y = test2[index, "Fold.change..log2."]
+tf_matrix3 = tf_matrix2[which(!is.na(y)),]
+tf_matrix4 =as.matrix(tf_matrix3)
+y2 = y[which(!is.na(y))]
+require(randomForest)
+train=sample(1:nrow(tf_matrix4),300)
+exp.rf=randomForest(tf_matrix4, y2, subset = train)
+save(exp.rf, file = "Documents/willenbring/first_random_forest.Robj")
+```
+
+```{r}
+write.table(tf_matrix4, "~/Downloads/X_values.xls", sep="\t", col.names=T, row.names=F)
+write.table(y2, "~/Downloads/y_values.xls", sep="\t", col.names=T, row.names=F)
+
+```
+#error goes down when we add more trees
+```{r}
+exp.rf
+plot(exp.rf)
+importanceOrder=order(-exp.rf$importance)
+names=rownames(exp.rf$importance)[importanceOrder][1:50]
+names
+varImpPlot(exp.rf)
+testset = tf_matrix4[which(!(1:nrow(tf_matrix4) %in% train)),]
+Prediction <- predict(exp.rf, testset)
+cor(Prediction, y2[which(!(1:nrow(tf_matrix4) %in% train))])
+table(observed=y2[which(!(1:nrow(tf_matrix4) %in% train))],predicted=Prediction)
+
+
+par(mfrow=c(5, 3), xpd=NA)
+for (name in names)
++   partialPlot(exp.rf, df, eval(name), main=name, xlab=name,ylim=c(-.2,.9))
+```
