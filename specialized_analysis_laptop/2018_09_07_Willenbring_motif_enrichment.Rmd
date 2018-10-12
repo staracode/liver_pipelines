@@ -224,6 +224,8 @@ tf_matrix2_bg = unzip_tf_locations(matches_bg_per_gene)
 
 ```{r}
 genes = data_DE2
+
+#remove rows where I couldn't link a gene name to a location
 genes2 = genes[which(!is.na(genes$chromosome_name)),]
 
 tf_matrix2 = rbind(tf_matrix2_fg, tf_matrix2_bg)
@@ -233,21 +235,24 @@ index = match( rownames(tf_matrix2), promoter_names)
 
 #y values
 y_regression = genes2[index, "Fold.change..log2."]
-#remove NA
-y_regression2 = y_regression[which(!is.na(y_regression))]
+
 
 y_classifier = rep(-1, length(y_regression))
 y_classifier [ which(genes2[index, "False.discovery.rate"] <0.01)] <- 1
 mean = mean(genes2[index, "False.discovery.rate"],na.rm=T)
 y_classifier [which(genes2[index, "False.discovery.rate"] <mean & genes2[index, "False.discovery.rate"] >=0.01)] <- NA
 table(y_classifier)
-y_classifier2 = y_classifier[which(!is.na(y_classifier))]
+y_classifier2 = y_classifier[which(!is.na(y_classifier) & !is.na(y_regression))]
 table(y_classifier2)
 
-#remove NA labels
+#remove NA
+y_regression2 = y_regression[which(!is.na(y_classifier) & !is.na(y_regression))]
 
-tf_matrix3 = tf_matrix2[which(!is.na(y_regression)),]
+#remove NA labels
+tf_matrix3 = tf_matrix2[which(!is.na(y_classifier) & !is.na(y_regression)),]
 tf_matrix4 = as.matrix(tf_matrix3)
+
+#check dimensions to see if they match 
 dim(tf_matrix4)
 length(y_regression2)
 length(y_classifier2)
