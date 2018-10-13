@@ -1,11 +1,13 @@
 import sys
 
 #parse results of intersection of VCF with regions of interest 
-snps = "/Users/tfriedrich/Downloads/Mattis_genes_snps.txt"
-outputfile = "/Users/tfriedrich/Downloads/Mattis_genes_snps_parsed.txt"
+snps = "/Users/tfriedrich/Documents/Mattis/Mattis_genes_snps.txt"
+outputfile = "/Users/tfriedrich/Documents/Mattis/Mattis_genes_snps_parsed.txt"
+outputfile2 = "/Users/tfriedrich/Documents/Mattis/Mattis_genes_snps_parsed_cytoscape.txt"
 columns = ["chrom", "snp_position", "snp_id", "reference_allele", "alternative_allele", "gene_of_interest", "non-synonymous_stop_codon_present", "non-synonymous_missense_present", "non-sysnonymous_frameshit_present", "freqeuncies_major_minor_1000Genomes", "frequencies_major_minor_TOPMED"]
 snps_filehandle = open(snps, "r")
 outhandle = open(outputfile, "w")
+outhandle2 = open(outputfile2, "w")
 outhandle.write("\t".join(columns) + "\n")
 for line in snps_filehandle: 
     if "ACOT8" in line:  # initially Aras Mattis was mainly interested in ACOT8 
@@ -26,6 +28,9 @@ for line in snps_filehandle:
 
             if "GENEINFO" in info: 
                 gene = info.replace("GENEINFO=", "")
+                genenames = gene.split('|')
+                genes2 = [genename.split(":")[0] for genename in genenames]
+                gene = "|".join(genes2)
 
         [NSN, NSM, NSF] = [0,0,0]
         if "NSN" in anno:
@@ -42,6 +47,8 @@ for line in snps_filehandle:
         # column description 
         
         outhandle.write("\t".join ([chrom, snp_start, snp_name,ref, alt, "\t".join(map(str, [gene, NSN, NSM, NSF, freq1, freq2]))]))
+        outhandle2.write("\t".join ([snp_name, "SNP", gene]))
         outhandle.write("\n")
+        outhandle2.write("\n")
 outhandle.close()
 snps_filehandle.close()
