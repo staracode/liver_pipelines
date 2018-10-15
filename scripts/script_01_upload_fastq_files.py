@@ -9,11 +9,12 @@ metadata = pd.read_csv(metadata_file, sep="\t")
 #for this project only
 full_filenames = metadata["Location"].tolist()
 #filenames = [x.split("/")[-1] for x in full_filenames]
-˜#os.system("mkdir ~/Mattis_fastq")
+#os.system("mkdir ~/Mattis_fastq")
 for name in full_filenames: 
-    newname = name.replace(" ", "\ ")
+    #newname = name.replace(" ", "\ ")
+    newname = name.replace("/Volumes/My Passport", "/Users/tfriedrich/Documents/Mattis/data/")
     #print "rsync -avPh " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
-    print "scp " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
+    print "scp -o PreferredAuthentications=publickey -o IdentitiesOnly=yes -i ~/.ssh/laptop_to_chef " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
 
 
 #genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR 
