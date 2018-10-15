@@ -30,12 +30,16 @@ do
 	# check that file is fastq.gz 
 	# [ -z "$line" ] && continue
 	INPUT+=($f1)
-	INPUT2+=($f2)  #TODO: handle if paired end doesn't exist
+	if [[ $f2 == *"fq.gz"* ]]; then
+		INPUT2+=($f2)  #TODO: handle if paired end doesn't exist
+	fi
 done <"$FILE1"
 echo "${INPUT[@]}"
 
-echo "mate"
-echo "${INPUT2[@]}"
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	echo "mate"
+	echo "${INPUT2[@]}"
+fi
 
 FASTQ_DIR=~/$DIR_NAME/fastq/
 FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
@@ -48,8 +52,10 @@ fi
 fastq="${INPUT[$SGE_TASK_ID]}"
 fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
 
-fastq2="${INPUT2[$SGE_TASK_ID]}"
-fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	fastq2="${INPUT2[$SGE_TASK_ID]}"
+	fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+fi
 
 # Use this to debug issues
 echo $PWD
@@ -58,8 +64,23 @@ echo $FASTQ_DIR'/'$fastq
 echo $FASTQ_DIR'/'$fastq2
 
 # Quality of data before trimming
-/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2
+else
+	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq
+fi 
+
 # Trim fastq filem
-/netapp/home/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2 -o $FASTQ_TRIM_DIR'/'$fastq_trim -o $FASTQ_TRIM_DIR'/'$fastq_trim2
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	/netapp/home/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2 -o $FASTQ_TRIM_DIR'/'$fastq_trim -o $FASTQ_TRIM_DIR'/'$fastq_trim2
+else
+	/netapp/home/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq  -o $FASTQ_TRIM_DIR'/'$fastq_trim
+fi 
+
 # Quality of the data after trimming
-/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+else
+	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim
+fi 
+

@@ -6,8 +6,11 @@ import os
 metadata_file = "/Users/tfriedrich/Documents/Mattis/metadata_Aras_Mattis_2018_08_01v3.txt"
 #metadata = pd.read_csv(metadata_file, names=["Location", "Name", "cell type", "Genotype", "dox treatment"], sep="\t")
 metadata = pd.read_csv(metadata_file, sep="\t")
+#select relevant files
+metadata2 = metadata[metadata['cell type'].str.contains("Endoderm")]
+metadata2[["Location", "Name", "cell type", "Genotype", "dox treatment"]].to_csv ("/Users/tfriedrich/Documents/Mattis/metadata_Aras_Mattis_2018_08_01v3_Endoderm_dox_config.txt", sep="\t", index=False)
 #for this project only
-full_filenames = metadata["Location"].tolist()
+full_filenames = metadata2["Location"].tolist()
 #filenames = [x.split("/")[-1] for x in full_filenames]
 #os.system("mkdir ~/Mattis_fastq")
 for name in full_filenames: 
@@ -15,7 +18,6 @@ for name in full_filenames:
     newname = name.replace("/Volumes/My Passport", "/Users/tfriedrich/Documents/Mattis/data/")
     #print "rsync -avPh " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
     print "scp -o PreferredAuthentications=publickey -o IdentitiesOnly=yes -i ~/.ssh/laptop_to_chef " + newname + " tfriedrich@pass1.compbio.ucsf.edu:~/Mattis_fastq"
-
 
 #genomes/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR 
 #subread feature counts 
