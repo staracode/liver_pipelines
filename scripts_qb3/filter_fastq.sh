@@ -1,4 +1,4 @@
- 	#!/bin/bash                         #-- what is the language of this shell
+#!/bin/bash                         #-- what is the language of this shell
 #                                  #-- Any line that starts with #$ is an instruction to SGE
 #$ -S /bin/bash                     #-- the shell for the job
 #$ -o filter_stdout                       #-- output directory (fill in)
@@ -31,7 +31,7 @@ do
 	# [ -z "$line" ] && continue
 	INPUT+=($f1)
 	if [[ $f2 == *"fq.gz"* ]]; then
-		INPUT2+=($f2)  #TODO: handle if paired end doesn't exist
+		INPUT2+=($f2)  
 	fi
 done <"$FILE1"
 echo "${INPUT[@]}"

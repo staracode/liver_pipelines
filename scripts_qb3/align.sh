@@ -30,16 +30,19 @@ do
 	# check that file is fastq.gz 
 	# [ -z "$line" ] && continue
 	INPUT+=($f1)
-	INPUT2+=($f2)  #TODO: handle if paired end doesn't exist
+	if [[ $f2 == *"fq.gz"* ]]; then
+		INPUT2+=($f2)  
+	fi 
 done <"$FILE1"
 echo "${INPUT[@]}"
 
-# paired end ( TODO: make this work for single or paired end )
+# paired end 
 fastq="${INPUT[$SGE_TASK_ID]}"
 fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`
-fastq2="${INPUT2[$SGE_TASK_ID]}"
-fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
-
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	fastq2="${INPUT2[$SGE_TASK_ID]}"
+	fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+fi 
 # Do I want to change fastq name to sample name here? 
 prefix=`echo $fastq | sed 's/.fq.gz/_algn_/'`
 
@@ -54,4 +57,8 @@ FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
 echo /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix
 echo $prefix
 
-/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+if [ "${#INPUT2[@]}" -gt 1 ]; then
+	/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+else
+	/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
+fi 

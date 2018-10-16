@@ -6,8 +6,8 @@ import os
 metadata_file = "/Users/tfriedrich/Documents/Mattis/metadata_Aras_Mattis_2018_08_01v3.txt"
 #metadata = pd.read_csv(metadata_file, names=["Location", "Name", "cell type", "Genotype", "dox treatment"], sep="\t")
 metadata = pd.read_csv(metadata_file, sep="\t")
-#select relevant files
-metadata2 = metadata[metadata['cell type'].str.contains("Endoderm")]
+#select relevant files (endoderm cells only)
+metadata2 = metadata[metadata['cell type'].str.contains("Endoderm")]  
 metadata2[["Location", "Name", "cell type", "Genotype", "dox treatment"]].to_csv ("/Users/tfriedrich/Documents/Mattis/metadata_Aras_Mattis_2018_08_01v3_Endoderm_dox_config.txt", sep="\t", index=False)
 #for this project only
 full_filenames = metadata2["Location"].tolist()
