@@ -1,0 +1,1 @@
+scp -o PreferredAuthentications=publickey -o IdentitiesOnly=yes -i ~/.ssh/laptop_to_chef  tfriedrich@pass1.compbio.ucsf.edu:LiverCenter/scripts_qb3/* Documents/GitHub/liver_pipelines/scripts_qb3/
