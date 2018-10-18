@@ -16,7 +16,7 @@ sessionInfo()
 #biocLite("BSgenome")
 library(BSgenome)
 #available.genomes()
-#biocLite("BSgenome.Mmusculus.UCSC.mm10.masked")
+#biocLite("BSgenome.Mmusculus.                                                                                                                                                                                                                                                                                                                                                                                                                               UCSC.mm10.masked")
 library(BSgenome.Mmusculus.UCSC.mm10.masked)
 
 # for motif analysis:
