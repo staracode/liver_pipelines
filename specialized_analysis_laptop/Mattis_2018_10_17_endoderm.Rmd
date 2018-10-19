@@ -1,5 +1,5 @@
 ---
-title: "Endoderm dox vs no treatment"
+title: "Endoderm dox vs no treatment hg38"
 output: html_document
 ---
 
@@ -31,7 +31,8 @@ rename = read.table("/Users/tfriedrich/Documents/Mattis/endoderm_project/metadat
 renamesample=list()
 for (x in 1:nrow(rename)){
   oldname = sub("_1.fq.gz", "", rename$Location[x])
-  newname = paste(rename$Name[x], rename$cell.type[x], rename$dox.treatment[x], rename$Genotype[x], sep="_")
+  print (rename$cell.type[x])
+  newname = paste(rename$Name[x], rename$dox.treatment[x], rename$Genotype[x], sep="_")
   renamesample[oldname] = newname
 }
 colnames(counts2) = unlist(lapply (colnames(counts2), function(x) renamesample[[x]]))
@@ -59,10 +60,11 @@ plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Sample
 
 PCA
 ```{r}
-Condition1 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=4)[,3], levels = c("No", "Yes"))
-Condition2 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=4)[,4], levels = c("wild-type","NASH pt"))
+Condition1 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,2], levels = c("No", "Yes"))
+Condition2 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,3], levels = c("wild-type","NASH pt"))
+Condition3 = factor(matrix (unlist(strsplit(colnames(counts3), "_")), byrow=T, ncol=3)[,1])
 
-cold <- data.frame("Condition1"=Condition1, "Condition2"=Condition2) 
+cold <- data.frame("Condition1"=Condition1, "Condition2"=Condition2, "Condition3"=Condition3) 
 rownames(cold) = colnames(counts3)
 cold
 
@@ -73,11 +75,17 @@ rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
 ```
 
 ```{r}
-pca              <- prcomp(t(assay(rld)))
+par(mfrow=c(2,1))
+pca <- prcomp(t(assay(rld)))
 #barplot(allPer.vec, main="PCA: % variance explained by each component\n" , ylim=c(0,100), names.arg=allPerLabels.vec)
 
-d <- data.frame(pca$x, group=Condition1, Condition2,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
-ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition2", color="group"))
+d <- data.frame(pca$x, Condition1, Condition2,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition2"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+
+d <- data.frame(pca$x, group=Condition1, Condition3,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition3"))
 ppp <- ppp + geom_point(size=6)
 plot(ppp)
 ```
@@ -143,6 +151,6 @@ colnames(results) = c(
                   , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_dox_vs_nodox_baseline", sep="_")))
                   )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Documents/Mattis/endoderm_project/mattis_", curr_date, ".xls"), row.names=F, col.names=T, sep="\t")
+write.table(results, paste0("~/Documents/Mattis/endoderm_project/mattis_", curr_date, ".xls"), row.names=rownames(counts3), col.names=T, sep="\t")
 
 ```
