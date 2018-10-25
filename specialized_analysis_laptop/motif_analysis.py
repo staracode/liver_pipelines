@@ -21,22 +21,25 @@ y_classifier= y_classifier_pandas['x']
 
 ##X, y = make_classification(n_samples=1000, n_features=4, n_informative=2, n_redundant=0, random_state=0, shuffle=False)
 #clf = RandomForestClassifier(n_estimators=50, max_depth=2, random_state=0)
-#clf = RandomForestClassifier()
-#param_grid = {
-#                 'n_estimators': [5, 10, 15, 20],
-#                 'max_depth': [2, 5, 7, 9]
-#             }
-#grid_clf = GridSearchCV(clf, param_grid, cv=10)
-#grid_clf.fit(X_train, y_train)
-clf_best = RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',
-            max_depth=7, max_features='auto', max_leaf_nodes=None,
-            min_impurity_decrease=0.0, min_impurity_split=None,
-            min_samples_leaf=1, min_samples_split=2,
-            min_weight_fraction_leaf=0.0, n_estimators=15, n_jobs=1,
-            oob_score=False, random_state=None, verbose=0,
-            warm_start=False)
-clf_best.fit(X, y_classifier)
-np.savetxt("/Users/tfriedrich/Downloads/output_classifier.txt", clf_best.feature_importances_)
+clf = RandomForestClassifier()
+param_grid = {
+                 'n_estimators': [5, 10, 15, 20],
+                 'max_depth': [2, 5, 7, 9]
+            }
+grid_clf = GridSearchCV(clf, param_grid, cv=10)
+grid_clf.fit(X,y_classifier)
+model = grid_clf.best_estimator_
+model.fit(X,y_classifier)
+#clf_best = RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',
+#            max_depth=7, max_features='auto', max_leaf_nodes=None,
+#            min_impurity_decrease=0.0, min_impurity_split=None,
+#            min_samples_leaf=1, min_samples_split=2,
+#            min_weight_fraction_leaf=0.0, n_estimators=15, n_jobs=1,
+#            oob_score=False, random_state=None, verbose=0,
+#            warm_start=False)
+#clf_best.fit(X, y_classifier)
+#np.savetxt("/Users/tfriedrich/Downloads/output_classifier.txt", clf_best.feature_importances_)
+np.savetxt("/Users/tfriedrich/Downloads/output_classifier.txt", model.feature_importances_)
 #print (grid_clf.best_estimator_)
 #RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',
 #            max_depth=7, max_features='auto', max_leaf_nodes=None,

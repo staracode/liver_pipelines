@@ -16,7 +16,7 @@ sessionInfo()
 #biocLite("BSgenome")
 library(BSgenome)
 #available.genomes()
-#biocLite("BSgenome.Mmusculus.                                                                                                                                                                                                                                                                                                                                                                                                                               UCSC.mm10.masked")
+#biocLite("BSgenome.Mmusculus.UCSC.mm10.masked")
 library(BSgenome.Mmusculus.UCSC.mm10.masked)
 
 # for motif analysis:
@@ -27,7 +27,7 @@ require(rtfbs)
 
 Read in data from supplement containing micrarray differentially expressed genes.
 ```{r}
-data_DE = read.table("~/Documents/willenbring/motif_analysis_2018_09/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
+data_DE = read.delim("~/Documents/willenbring/motif_analysis_2018_09/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
 head(data_DE)
 
 ```

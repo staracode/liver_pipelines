@@ -1,0 +1,121 @@
+---
+title: "2018_10_22_Willenbring_motif"
+output: html_document
+---
+```{r }
+library(plyr)
+library(dplyr) #order matters; load after loading plyr
+# for annotation retrieval: 
+library(biomaRt)
+library(org.Mm.eg.db)
+sessionInfo()
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("org.Mm.eg.db")
+#biocLite("BSgenome")
+library(BSgenome)
+#available.genomes()
+#biocLite("BSgenome.Mmusculus.UCSC.mm10.masked")
+library(BSgenome.Mmusculus.UCSC.mm10.masked)
+
+# for motif analysis:
+library(Biostrings)
+library (MotifDb)
+require(rtfbs)
+```
+
+```{r}
+data_DE = read.delim("~/Documents/willenbring/motif_analysis_2018_09/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
+colnames(data_DE)
+dim(data_DE)
+
+```
+
+```{r}
+length(which(data_DE[, "False.discovery.rate"]<0.05))
+length(which(data_DE[, "False.discovery.rate.1"]<0.05))
+length(which(data_DE[, "False.discovery.rate.2"]<0.20))
+index1 = data_DE[, "False.discovery.rate"]<0.05
+index2 = data_DE[, "False.discovery.rate.1"]<0.05
+index3 = data_DE[, "False.discovery.rate.2"]<0.20
+index4 = complete.cases(data_DE[,c( "MFs.1", "MFs.2", "MFs.3", "Heps1", "Heps2", "Heps3", "MF.iHeps1", "MF.iHeps2", "MF.iHeps3", "MF.iHeps4", "MF.iHeps5")])
+
+focus = data_DE[which(index1 & index2 & index3 & index4), c( "MFs.1", "MFs.2", "MFs.3", "Heps1", "Heps2", "Heps3", "MF.iHeps1", "MF.iHeps2", "MF.iHeps3", "MF.iHeps4", "MF.iHeps5")]
+                 
+focus = data.matrix(focus)
+dim(focus)
+
+pheatmap(focus, labels_row=data_DE[which(index1 & index2 & index3 & index4),"Symbol"])     
+
+```
+
+```{r}
+#ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl", host = "useast.ensembl.org")
+ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
+attributes = listAttributes(ensembl)
+#attributes 
+annotation_info = getBM(attributes = c("entrezgene","chromosome_name", "transcript_start","transcript_end", "strand"), filters = "entrezgene", values = data_DE$Entrez, mart=ensembl)
+head(annotation_info)
+```
+
+```{r}
+#  ------------start-----------------------------------end-->>>>>>>>
+# --------transcript_start-100-------------transcript_start->>>>>>>>  (+)
+
+#  <<<<<<<-start-----------------------------------end----------
+#  <<<<<<<-transcript_end------------------transcript_end+100---      (-)
+
+annotation_info[, "chrom"] = paste0("chr", annotation_info$chromosome_name)
+#replace chromosome MT with M for UCSC naming standards 
+annotation_info[which(annotation_info[, "chrom"] == "chrMT"), "chrom"] = "chrM"
+annotation_info[, "start"] = unlist(lapply (seq(1, nrow(annotation_info)),  function(x) if (annotation_info[x,"strand"] < 0) { annotation_info[x,"transcript_end"] } else{ annotation_info[x, "transcript_start"] -1000 }  ))
+annotation_info[, "end"] = unlist(lapply (seq(1, nrow(annotation_info)),  function(x) if ( annotation_info[x, "strand"] < 0 ) {annotation_info[x, "transcript_end"] +1000} else{annotation_info[x,  "transcript_start"]}  ))
+annotation_info[, "strand2"] = unlist(lapply (annotation_info$strand, function(x) if (x < 0) { "-" } else{ "+" } ))
+
+#checked these coordiantes in the genome browser
+
+index = match (data_DE$Entrez, annotation_info$entrezgene)
+data_DE2 = cbind(annotation_info[index,], data_DE)
+
+#lots of entrez IDs missing because they look like this "15507 /// 15508"
+head(data_DE2)
+```
+
+
+```{r}
+get_promoter_sequences <- function (data_DE2){
+  myseqs = data_DE2[, c("chrom", "start", "end", "strand2")]
+  
+  dim(myseqs)
+  str(myseqs)
+  
+  #remove rows with NA
+  myseqs = myseqs[complete.cases(myseqs),]
+  dim(myseqs)
+  
+  #remove duplicate rows
+  myseqs = distinct(myseqs)
+  dim(myseqs)
+  
+  #remove weird chromosomes 
+  myseqs = myseqs[myseqs$chrom %in% paste0("chr", c(seq(1,19), "X", "Y", "MT")),]
+  
+  myseqs2 = getSeq(BSgenome.Mmusculus.UCSC.mm10.masked, myseqs$chrom, start=myseqs$start, end=myseqs$end, strand=myseqs$strand2)
+  
+  # give fasta header a more descriptive label
+  labels = paste(myseqs$chrom, myseqs$start, myseqs$end, myseqs$strand2, sep="||")
+  length(which(!duplicated(labels[order(labels)])))
+  names(myseqs2) = labels
+  return(myseqs2)
+}
+
+# background sequences
+myseqs_background = get_promoter_sequences (data_DE2)
+writeXStringSet(myseqs_background, "~/Documents/willenbring/background_promoters_version2.fa", format="fasta")
+myseqs_background
+
+# foreground sequences 
+myseqs_foreground = get_promoter_sequences (data_DE2[which(index1 & index2 & index3),])
+writeXStringSet(myseqs_foreground, "~/Documents/willenbring/foreground_promoters_version2.fa", format="fasta")
+myseqs_foreground
+
+```

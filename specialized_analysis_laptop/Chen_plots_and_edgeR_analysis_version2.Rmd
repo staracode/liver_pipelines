@@ -1,0 +1,260 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+---
+title: "Chen lab RNA-seq"
+output: html_notebook
+#human cell lines 
+# si RNA knockdown experiment
+```{r}
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+sessionInfo()
+```
+Read in files
+```{r}
+filename = "~/Documents/chen/readcounts.txt"
+counts1 = read.table(filename, header = T, stringsAsFactors = F) 
+rownames(counts1) = counts1$Geneid
+
+
+```
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts2 = counts1[,7:ncol(counts1)]
+colnames(counts2) = sub("_1_algn_Aligned", "", matrix(unlist(strsplit(colnames(counts2), "\\.")), byrow =T, ncol=6)[,3])
+```
+Filter out genes with low and high counts ( high counts might be mitochondrial genes)
+```{r}
+keep = rowMeans(counts2) > 5 & rowMeans(counts2) < 5000 
+counts3 = counts2[keep,]
+
+```
+Add count of 1 so that I can take the log later
+```{r}
+#counts4 = counts3 + 1
+counts4 = counts3
+```
+Take the log (RPKM)
+```{r}
+y <- DGEList(counts=counts4)
+fpkm_log_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = TRUE)
+```
+scatterplot pairwise
+```{r}
+```
+Dendrogram 
+```{r}
+# 
+#par(cex=1,font=3)
+hc2 <- hclust(stats::dist(t(fpkm_log_matrix), method="minkowski"), "ward.D2")
+#par(mar=c(10, 4, 4, 10), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by log2(FPKM+1) using Ward's clustering & Euclidean distance")
+```
+Some replicates don't cluster (see FocusT replicates). Samples cluster by cell type. SS49 and SS475 are more similar than the other cell types. 
+
+
+Setup up design matrix for PCA plot
+```{r}
+groupNamesPerSample = matrix (unlist(strsplit(colnames(counts4), "_")), byrow=T, ncol=4) [,1]
+groupNamesPerSample = unlist( lapply (groupNamesPerSample, function(x) sub("S475", "", sub("S449", "", sub("PLC", "", sub("Focus", "", x))))) )
+conditionFactor  <- factor(groupNamesPerSample)
+subjectgroup = matrix (unlist(strsplit(colnames(counts4), "_")), byrow=T, ncol=4) [,1]
+subjectgroup = unlist( lapply (subjectgroup, function(x) sub("SC", "", sub("YT", "", sub("T", "", sub("Y", "", x))))) )
+Subject <- factor(subjectgroup)
+```
+PCA plot
+```{r}
+cold <- data.frame("conditionFactor"=conditionFactor, "Subject"=Subject) #"sample_name"=colnames(counts4)
+design_matrix <- model.matrix( ~Subject + conditionFactor)
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts4, colData=cold, design=~conditionFactor);
+colnames(ddsMat) <- colnames(counts4)
+rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
+#rld <- DESeq2::rlog(ddsMat, blind=blind_status) 
+
+pca              <- prcomp(t(assay(rld)))
+allPer.vec       <- 100 * summary(pca)$importance[2,]
+allPer.text      <- paste(format(allPer.vec,digits=0, nsmall=1, scientific=FALSE), "%", sep='')
+allPerLabels.vec <- paste(names(allPer.vec), "\n", allPer.text, sep='')
+
+barplot(allPer.vec, main="PCA: % variance explained by each component\n" , ylim=c(0,100), names.arg=allPerLabels.vec)
+
+d <- data.frame(pca$x, group=conditionFactor, Subject, name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2", shape="Subject", color="group"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+```
+Samples seem to cluster by cell type. S449 and S475 appear to be very similar.  Replicates cluster together mostly. 
+
+Concatenate samples with replicates 
+```{r}
+#done manually using counts3 because I don't want to use matrix counts with 1 added to the value
+counts5 = data.frame(
+            counts3$FocusSC_USR17001380L_HJHCJBBXX_L6
+          , counts3$FocusT_USR17001382L_HJHCJBBXX_L7 + counts3$FocusT_USR17001382L_HKF5JBBXX_L1
+          , counts3$FocusYT_USR17001383L_hkff7BBXX_L1 + counts3$FocusYT_USR17001383L_HKY5KBBXX_L1
+          , counts3$FocusY_USR17001381L_HJHCJBBXX_L6
+          
+          , counts3$PLCSC_USR17002043L_HJHCJBBXX_L7
+          , counts3$PLCT_USR17002044L_HJHCJBBXX_L7
+          , counts3$PLCYT_USR17001379L_HJHCJBBXX_L6
+          , counts3$PLCY_USR17001377L_HJHCJBBXX_L6
+          
+          , counts3$S449SC_USR17001384L_HJHCJBBXX_L7
+          , counts3$S449T_USR17001386L_HJHCJBBXX_L7 
+          , counts3$S449YT_USR17002046L_HJHCJBBXX_L7 + counts3$S449YT_USR17002046L_HKF5JBBXX_L3 
+          , counts3$S449Y_USR17001385L_HJHCJBBXX_L7 + counts3$S449Y_USR17001385L_HKF5JBBXX_L3
+          
+          , counts3$S475SC_USR17001372L_HJHCJBBXX_L6
+          , counts3$S475T_USR17001374L_HJHCJBBXX_L6
+          , counts3$S475YT_USR17001375L_HJHCJBBXX_L6
+          , counts3$S475Y_USR17001373L_HJHCJBBXX_L6 
+          )
+
+colnames(counts5) = unlist(lapply (strsplit(sub("counts3.", "" ,colnames(counts5)) , "_"), `[[`, 1))
+rownames(counts5) = rownames(counts3)
+```
+Setup up design matrix for DE
+```{r}
+Condition = unlist( lapply (colnames(counts5), function(x) sub("S475", "", sub("S449", "", sub("PLC", "", sub("Focus", "", x))))) )
+Condition  <- factor(Condition)
+Subject2 = unlist( lapply (colnames(counts5), function(x) sub("SC", "", sub("YT", "", sub("T", "", sub("Y", "", x))))) )
+Subject2 <- factor(Subject2)
+cold <- data.frame("Condition"=Condition, "Subject2"=Subject2) #"sample_name"=colnames(counts4)
+design_matrix2 <- model.matrix( ~Subject2 + Condition)
+
+```
+FPKM after combinining samples that are "technical" replicates
+```{r}
+y_combined <- DGEList(counts=counts5)
+fpkm_matrix = rpkm (y_combined, gene.length=counts1[keep,"Length"], log = FALSE)
+```
+
+Heatmap to see how cells cluster by cell type or experimental condition.  No replicates because they have been combined. 
+```{r}
+HEATMAP_HEIGHT <- 45 # inchescol
+HEATMAP_WIDTH  <- 15
+annotation <- data.frame(Expt = Condition, Celltype=Subject2)
+rownames(annotation) <- colnames(counts5)
+pheatmap(fpkm_matrix,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         , annotation = annotation
+         , fontsize_row=3.5)
+
+```
+This heatmap confirms the pattern seen in the dendrogram and PCA plot. 
+
+```{r}
+y_combined <- DGEList(counts=counts5)
+fpkm_matrix = rpkm (y_combined, gene.length=counts1[keep,"Length"], log = FALSE)
+#wwtr1
+fpkm_matrix_wwtr1 = fpkm_matrix[which(rownames(fpkm_matrix) == "ENSG00000018408"), ]
+fpkm_matrix_wwtr1_percent = c(cbind(fpkm_matrix_wwtr1["FocusT"]/fpkm_matrix_wwtr1[ "FocusSC"], fpkm_matrix_wwtr1["PLCT"]/fpkm_matrix_wwtr1[ "PLCSC"], fpkm_matrix_wwtr1["S475T"]/fpkm_matrix_wwtr1[ "S475SC"], fpkm_matrix_wwtr1["S449T"]/fpkm_matrix_wwtr1[ "S449SC"], fpkm_matrix_wwtr1["FocusYT"]/fpkm_matrix_wwtr1[ "FocusSC"], fpkm_matrix_wwtr1["PLCYT"]/fpkm_matrix_wwtr1[ "PLCSC"], fpkm_matrix_wwtr1["S475YT"]/fpkm_matrix_wwtr1[ "S475SC"], fpkm_matrix_wwtr1["S449YT"]/fpkm_matrix_wwtr1[ "S449SC"] ))
+names(fpkm_matrix_wwtr1_percent ) = c("FocusT/SC", "PLCT/SC", "S475T/SC", "S449T/SC", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC")
+
+#barplot(fpkm_matrix_wwtr1, las=2)
+barplot(fpkm_matrix_wwtr1_percent, las=2, cex.names=.7, ylab= "percent KD", main="wwtr1 based on fpkm values")
+
+
+#yap1
+fpkm_matrix_yap1 = fpkm_matrix[which(rownames(fpkm_matrix) == "ENSG00000137693"), ]
+fpkm_matrix_yap1_percent = c(cbind(fpkm_matrix_yap1["FocusY"]/fpkm_matrix_yap1[ "FocusSC"], fpkm_matrix_yap1["PLCY"]/fpkm_matrix_yap1[ "PLCSC"], fpkm_matrix_yap1["S475Y"]/fpkm_matrix_yap1[ "S475SC"], fpkm_matrix_yap1["S449Y"]/fpkm_matrix_yap1[ "S449SC"], fpkm_matrix_yap1["FocusYT"]/fpkm_matrix_yap1[ "FocusSC"], fpkm_matrix_yap1["PLCYT"]/fpkm_matrix_yap1[ "PLCSC"], fpkm_matrix_yap1["S475YT"]/fpkm_matrix_yap1[ "S475SC"], fpkm_matrix_yap1["S449YT"]/fpkm_matrix_yap1[ "S449SC"] ))
+names(fpkm_matrix_yap1_percent ) = c("FocusY/SC", "PLCY/SC", "S475Y/SC", "S449Y/SC", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC")
+#barplot(fpkm_matrix_yap1, las=2)
+barplot(fpkm_matrix_yap1_percent, las=2,  cex.names=.7, ylab= "percent KD", main = "yap1 based on fpkm values")
+
+```
+Fit the model and estimate dispersion value.
+```{r}
+y_for_DE <- DGEList(counts=counts5)
+y_for_DE <- calcNormFactors(y_for_DE)
+y_for_DE = estimateDisp(y_for_DE, design=design_matrix2) 
+plotBCV(y_for_DE)
+fit <- glmFit(y_for_DE, design=design_matrix2, dispersion=y_for_DE$trended.dispersion)
+
+```
+Run differential expression
+SC vs YT
+```{r}
+lrt_T <- glmLRT(fit,coef = "ConditionT")
+topTags(lrt_T)
+smoothScatter(x=lrt_T$table$logFC, y=-log10(lrt_T$table$PValue))
+lrt_T_table = data.frame(lrt_T$table, p.adjust(lrt_T$table$PValue, method = "BH"))
+colnames(lrt_T_table) = c(colnames(lrt_T$table), "adjPVal_BH")
+hist(lrt_T_table$PValue)
+```
+SC vs Y
+```{r}
+lrt_Y <- glmLRT(fit,coef = "ConditionY")
+topTags(lrt_Y)
+smoothScatter(x=lrt_Y$table$logFC, y=-log10(lrt_Y$table$PValue))
+lrt_Y_table = data.frame(lrt_Y$table, p.adjust(lrt_Y$table$PValue, method = "BH"))
+colnames(lrt_Y_table) = c(colnames(lrt_Y$table), "adjPVal_BH")
+hist(lrt_Y_table$PValue)
+
+```
+SC vs YT
+```{r}
+lrt_YT <- glmLRT(fit,coef = "ConditionYT")
+topTags(lrt_YT)
+smoothScatter(x=lrt_YT$table$logFC, y=-log10(lrt_YT$table$PValue))
+lrt_YT_table = data.frame(lrt_YT$table, p.adjust(lrt_YT$table$PValue, method = "BH"))
+colnames(lrt_YT_table) = c(colnames(lrt_YT$table), "adjPVal_BH")
+hist(lrt_YT_table$PValue)
+
+```
+
+
+Format output into excel sheet. 
+```{r}
+genes = rownames(counts5)
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+head(listAttributes(ensembl), 30)
+hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+
+fpkm_log_matrix2 = rpkm (y_for_DE, gene.length=counts1[keep,"Length"], log = TRUE)
+index = match (genes, hgnc_swissprot$ensembl_gene_id)
+results = data.frame(hgnc_swissprot[index,], counts5, fpkm_log_matrix2, lrt_T_table, lrt_Y_table, lrt_YT_table)
+colnames(results) = c(
+                    colnames(hgnc_swissprot[index,])
+                  , unlist(lapply (colnames(counts5), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_log_matrix2), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_T_table), function(x) paste(x, "_SC_vs_T", sep="_")))
+                  , unlist(lapply (colnames(lrt_Y_table), function(x) paste(x, "_SC_vs_Y", sep="_")))
+                  , unlist(lapply (colnames(lrt_YT_table), function(x) paste(x, "_SC_vs_YT", sep="_"))) )
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Downloads/Chen_", curr_date, ".xls"), row.names=F, col.names=T, sep="\t")
+
+```
+Heatmap of DE genes.  
+```{r}
+pheatmap(fpkm_log_matrix2[order(lrt_T_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusT", "PLCT", "S449T", "S475T")], cluster_rows=FALSE, cluster_cols=FALSE)
+
+pheatmap(fpkm_log_matrix2[order(lrt_Y_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusY", "PLCY", "S449Y", "S475Y")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(fpkm_log_matrix2[order(lrt_YT_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],colnames(fpkm_log_matrix2)[grep("YT", colnames(fpkm_log_matrix2))] )], cluster_rows=FALSE, cluster_cols=FALSE)
+
+#try this
+mean_values = (fit$coefficients %*% t(design_matrix2))
+colnames(mean_values) = colnames(counts5)
+rownames(mean_values) = rownames(counts5)
+
+pheatmap(mean_values[order(lrt_T_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusT", "PLCT", "S449T", "S475T")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(mean_values[order(lrt_Y_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusY", "PLCY", "S449Y", "S475Y")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(mean_values[order(lrt_YT_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],colnames(fpkm_log_matrix2)[grep("YT", colnames(fpkm_log_matrix2))] )], cluster_rows=FALSE, cluster_cols=TRUE)
+
+#edit column description
+write.table(colnames(results), "~/Downloads/column_description.txt", quote=F, col.names=F, row.names=F,sep="\t")
+```
+
