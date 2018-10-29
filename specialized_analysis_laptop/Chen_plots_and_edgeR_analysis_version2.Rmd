@@ -4,7 +4,7 @@ output:
   pdf_document: default
 ---
 ---
-title: "Chen lab RNA-seq"
+title: "Chen lab RNA-seq version 2 with new samples"
 output: html_notebook
 #human cell lines 
 # si RNA knockdown experiment
@@ -16,17 +16,21 @@ library(biomaRt)
 library(ggplot2)
 sessionInfo()
 ```
-Read in files
+Read in files. Add new samples that are technical replicates (S449). 
 ```{r}
-filename = "~/Documents/chen/readcounts.txt"
-counts1 = read.table(filename, header = T, stringsAsFactors = F) 
-rownames(counts1) = counts1$Geneid
-
-
+filename = "/Users/tfriedrich/Documents/chen/readcounts.txt"
+counts1_old = read.table(filename, header = T,stringsAsFactors = F) 
+rownames(counts1_old) = counts1_old$Geneid
+filename2 = "/Users/tfriedrich/Documents/chen/readcounts_newsamples.txt"
+counts1_new = read.table(filename2, header=T, stringsAsFactors = F)                             
+rownames(counts1_new) = counts1_new$Geneid   
+length(which(counts1_old$Geneid==counts1_new$Geneid))
+counts1 = data.frame(cbind(counts1_old, counts1_new[,7:ncol(counts1_new)]))      
+dim(counts1)
 ```
 Remove metadata (Gene, coordinates, etc)
 ```{r}
-counts2 = counts1[,7:ncol(counts1)]
+counts2 = data.matrix(counts1[,7:ncol(counts1)])
 colnames(counts2) = sub("_1_algn_Aligned", "", matrix(unlist(strsplit(colnames(counts2), "\\.")), byrow =T, ncol=6)[,3])
 ```
 Filter out genes with low and high counts ( high counts might be mitochondrial genes)
@@ -50,21 +54,20 @@ scatterplot pairwise
 ```
 Dendrogram 
 ```{r}
-# 
-#par(cex=1,font=3)
+
 hc2 <- hclust(stats::dist(t(fpkm_log_matrix), method="minkowski"), "ward.D2")
-#par(mar=c(10, 4, 4, 10), pty='s')
 plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by log2(FPKM+1) using Ward's clustering & Euclidean distance")
 ```
 Some replicates don't cluster (see FocusT replicates). Samples cluster by cell type. SS49 and SS475 are more similar than the other cell types. 
 
+S449 technical replicate showing batch effects. 
 
 Setup up design matrix for PCA plot
 ```{r}
-groupNamesPerSample = matrix (unlist(strsplit(colnames(counts4), "_")), byrow=T, ncol=4) [,1]
+groupNamesPerSample = c(matrix (unlist(strsplit(colnames(counts4[,1:20]), "_")), byrow=T, ncol=4) [,1], colnames(counts4[,21:24]))
 groupNamesPerSample = unlist( lapply (groupNamesPerSample, function(x) sub("S475", "", sub("S449", "", sub("PLC", "", sub("Focus", "", x))))) )
 conditionFactor  <- factor(groupNamesPerSample)
-subjectgroup = matrix (unlist(strsplit(colnames(counts4), "_")), byrow=T, ncol=4) [,1]
+subjectgroup = c(matrix (unlist(strsplit(colnames(counts4[,1:20]), "_")), byrow=T, ncol=4) [,1], colnames(counts4[,21:24]))
 subjectgroup = unlist( lapply (subjectgroup, function(x) sub("SC", "", sub("YT", "", sub("T", "", sub("Y", "", x))))) )
 Subject <- factor(subjectgroup)
 ```
@@ -75,7 +78,6 @@ design_matrix <- model.matrix( ~Subject + conditionFactor)
 ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts4, colData=cold, design=~conditionFactor);
 colnames(ddsMat) <- colnames(counts4)
 rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
-#rld <- DESeq2::rlog(ddsMat, blind=blind_status) 
 
 pca              <- prcomp(t(assay(rld)))
 allPer.vec       <- 100 * summary(pca)$importance[2,]
@@ -91,33 +93,48 @@ plot(ppp)
 ```
 Samples seem to cluster by cell type. S449 and S475 appear to be very similar.  Replicates cluster together mostly. 
 
+Again S449 technical replicate showing batch effects. 
+
 Concatenate samples with replicates 
 ```{r}
 #done manually using counts3 because I don't want to use matrix counts with 1 added to the value
 counts5 = data.frame(
-            counts3$FocusSC_USR17001380L_HJHCJBBXX_L6
-          , counts3$FocusT_USR17001382L_HJHCJBBXX_L7 + counts3$FocusT_USR17001382L_HKF5JBBXX_L1
-          , counts3$FocusYT_USR17001383L_hkff7BBXX_L1 + counts3$FocusYT_USR17001383L_HKY5KBBXX_L1
-          , counts3$FocusY_USR17001381L_HJHCJBBXX_L6
+            counts3[, "FocusSC_USR17001380L_HJHCJBBXX_L6"]
+          , counts3[, "FocusT_USR17001382L_HJHCJBBXX_L7"] + counts3[, "FocusT_USR17001382L_HKF5JBBXX_L1"]
+          , counts3[, "FocusYT_USR17001383L_hkff7BBXX_L1"] + counts3[, "FocusYT_USR17001383L_HKY5KBBXX_L1"]
+          , counts3[, "FocusY_USR17001381L_HJHCJBBXX_L6"]
           
-          , counts3$PLCSC_USR17002043L_HJHCJBBXX_L7
-          , counts3$PLCT_USR17002044L_HJHCJBBXX_L7
-          , counts3$PLCYT_USR17001379L_HJHCJBBXX_L6
-          , counts3$PLCY_USR17001377L_HJHCJBBXX_L6
+          , counts3[, "PLCSC_USR17002043L_HJHCJBBXX_L7"]
+          , counts3[, "PLCT_USR17002044L_HJHCJBBXX_L7"]
+          , counts3[, "PLCYT_USR17001379L_HJHCJBBXX_L6"]
+          , counts3[, "PLCY_USR17001377L_HJHCJBBXX_L6"]
           
-          , counts3$S449SC_USR17001384L_HJHCJBBXX_L7
-          , counts3$S449T_USR17001386L_HJHCJBBXX_L7 
-          , counts3$S449YT_USR17002046L_HJHCJBBXX_L7 + counts3$S449YT_USR17002046L_HKF5JBBXX_L3 
-          , counts3$S449Y_USR17001385L_HJHCJBBXX_L7 + counts3$S449Y_USR17001385L_HKF5JBBXX_L3
+          , counts3[, "S449SC_USR17001384L_HJHCJBBXX_L7"]
+          , counts3[, "S449T_USR17001386L_HJHCJBBXX_L7"] 
+          , counts3[, "S449YT_USR17002046L_HJHCJBBXX_L7"] + counts3[, "S449YT_USR17002046L_HKF5JBBXX_L3"]
+          , counts3[, "S449Y_USR17001385L_HJHCJBBXX_L7"] + counts3[, "S449Y_USR17001385L_HKF5JBBXX_L3"]
           
-          , counts3$S475SC_USR17001372L_HJHCJBBXX_L6
-          , counts3$S475T_USR17001374L_HJHCJBBXX_L6
-          , counts3$S475YT_USR17001375L_HJHCJBBXX_L6
-          , counts3$S475Y_USR17001373L_HJHCJBBXX_L6 
+          , counts3[, "S475SC_USR17001372L_HJHCJBBXX_L6"]
+          , counts3[, "S475T_USR17001374L_HJHCJBBXX_L6"]
+          , counts3[, "S475YT_USR17001375L_HJHCJBBXX_L6"]
+          , counts3[, "S475Y_USR17001373L_HJHCJBBXX_L6"]
+          
+          , counts3[, "S449SC"]
+          , counts3[, "S449T"]
+          , counts3[, "S449Y"]
+          , counts3[, "S449YT"]
           )
+colnames(counts5)
 
-colnames(counts5) = unlist(lapply (strsplit(sub("counts3.", "" ,colnames(counts5)) , "_"), `[[`, 1))
+colnames(counts5) = c(unlist(lapply (strsplit(sub("counts3....", "" ,colnames(counts5[,1:16])) , "_"), `[[`, 1)), sub("counts3.", "", colnames(counts5[, 17:20])))
+colnames(counts5) = gsub("\\.", "", colnames(counts5))
 rownames(counts5) = rownames(counts3)
+```
+```{r}
+library(ggplot2)
+library(tidyr)
+ggplot(gather((counts5[,1:5]), cols, value), aes(x = value)) + 
+       geom_histogram(binwidth=100) + facet_grid(.~cols)
 ```
 Setup up design matrix for DE
 ```{r}
@@ -131,6 +148,7 @@ design_matrix2 <- model.matrix( ~Subject2 + Condition)
 ```
 FPKM after combinining samples that are "technical" replicates
 ```{r}
+colnames(counts5) = paste0(colnames(counts5), c(rep("_1", 16), rep("_2", 4)))
 y_combined <- DGEList(counts=counts5)
 fpkm_matrix = rpkm (y_combined, gene.length=counts1[keep,"Length"], log = FALSE)
 ```
@@ -161,8 +179,18 @@ y_combined <- DGEList(counts=counts5)
 fpkm_matrix = rpkm (y_combined, gene.length=counts1[keep,"Length"], log = FALSE)
 #wwtr1
 fpkm_matrix_wwtr1 = fpkm_matrix[which(rownames(fpkm_matrix) == "ENSG00000018408"), ]
-fpkm_matrix_wwtr1_percent = c(cbind(fpkm_matrix_wwtr1["FocusT"]/fpkm_matrix_wwtr1[ "FocusSC"], fpkm_matrix_wwtr1["PLCT"]/fpkm_matrix_wwtr1[ "PLCSC"], fpkm_matrix_wwtr1["S475T"]/fpkm_matrix_wwtr1[ "S475SC"], fpkm_matrix_wwtr1["S449T"]/fpkm_matrix_wwtr1[ "S449SC"], fpkm_matrix_wwtr1["FocusYT"]/fpkm_matrix_wwtr1[ "FocusSC"], fpkm_matrix_wwtr1["PLCYT"]/fpkm_matrix_wwtr1[ "PLCSC"], fpkm_matrix_wwtr1["S475YT"]/fpkm_matrix_wwtr1[ "S475SC"], fpkm_matrix_wwtr1["S449YT"]/fpkm_matrix_wwtr1[ "S449SC"] ))
-names(fpkm_matrix_wwtr1_percent ) = c("FocusT/SC", "PLCT/SC", "S475T/SC", "S449T/SC", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC")
+fpkm_matrix_wwtr1_percent = c(cbind(
+    fpkm_matrix_wwtr1["FocusT_1"]/fpkm_matrix_wwtr1[ "FocusSC_1"]
+  , fpkm_matrix_wwtr1["PLCT_1"]/fpkm_matrix_wwtr1[ "PLCSC_1"]
+  , fpkm_matrix_wwtr1["S475T_1"]/fpkm_matrix_wwtr1[ "S475SC_1"]
+  , fpkm_matrix_wwtr1["S449T_1"]/fpkm_matrix_wwtr1[ "S449SC_1"]
+  , fpkm_matrix_wwtr1["S449T_2"]/fpkm_matrix_wwtr1[ "S449SC_2"]
+  , fpkm_matrix_wwtr1["FocusYT_1"]/fpkm_matrix_wwtr1[ "FocusSC_1"]
+  , fpkm_matrix_wwtr1["PLCYT_1"]/fpkm_matrix_wwtr1[ "PLCSC_1"]
+  , fpkm_matrix_wwtr1["S475YT_1"]/fpkm_matrix_wwtr1[ "S475SC_1"]
+  , fpkm_matrix_wwtr1["S449YT_1"]/fpkm_matrix_wwtr1[ "S449SC_1"] 
+  , fpkm_matrix_wwtr1["S449YT_2"]/fpkm_matrix_wwtr1[ "S449SC_2"] ))
+names(fpkm_matrix_wwtr1_percent ) = c("FocusT/SC", "PLCT/SC", "S475T/SC", "S449T/SC", "S449T_2/SC_2", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC", "S449YT_2/SC_2")
 
 #barplot(fpkm_matrix_wwtr1, las=2)
 barplot(fpkm_matrix_wwtr1_percent, las=2, cex.names=.7, ylab= "percent KD", main="wwtr1 based on fpkm values")
@@ -170,12 +198,24 @@ barplot(fpkm_matrix_wwtr1_percent, las=2, cex.names=.7, ylab= "percent KD", main
 
 #yap1
 fpkm_matrix_yap1 = fpkm_matrix[which(rownames(fpkm_matrix) == "ENSG00000137693"), ]
-fpkm_matrix_yap1_percent = c(cbind(fpkm_matrix_yap1["FocusY"]/fpkm_matrix_yap1[ "FocusSC"], fpkm_matrix_yap1["PLCY"]/fpkm_matrix_yap1[ "PLCSC"], fpkm_matrix_yap1["S475Y"]/fpkm_matrix_yap1[ "S475SC"], fpkm_matrix_yap1["S449Y"]/fpkm_matrix_yap1[ "S449SC"], fpkm_matrix_yap1["FocusYT"]/fpkm_matrix_yap1[ "FocusSC"], fpkm_matrix_yap1["PLCYT"]/fpkm_matrix_yap1[ "PLCSC"], fpkm_matrix_yap1["S475YT"]/fpkm_matrix_yap1[ "S475SC"], fpkm_matrix_yap1["S449YT"]/fpkm_matrix_yap1[ "S449SC"] ))
-names(fpkm_matrix_yap1_percent ) = c("FocusY/SC", "PLCY/SC", "S475Y/SC", "S449Y/SC", "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC")
+fpkm_matrix_yap1_percent = c(cbind(
+    fpkm_matrix_yap1["FocusY_1"]/fpkm_matrix_yap1[ "FocusSC_1"]
+  , fpkm_matrix_yap1["PLCY_1"]/fpkm_matrix_yap1[ "PLCSC_1"]
+  , fpkm_matrix_yap1["S475Y_1"]/fpkm_matrix_yap1[ "S475SC_1"]
+  , fpkm_matrix_yap1["S449Y_1"]/fpkm_matrix_yap1[ "S449SC_1"]
+  , fpkm_matrix_yap1["S449Y_2"]/fpkm_matrix_yap1[ "S449SC_2"]
+  , fpkm_matrix_yap1["FocusYT_1"]/fpkm_matrix_yap1[ "FocusSC_1"]
+  , fpkm_matrix_yap1["PLCYT_1"]/fpkm_matrix_yap1[ "PLCSC_1"]
+  , fpkm_matrix_yap1["S475YT_1"]/fpkm_matrix_yap1[ "S475SC_1"]
+  , fpkm_matrix_yap1["S449YT_1"]/fpkm_matrix_yap1[ "S449SC_1"]
+  , fpkm_matrix_yap1["S449YT_2"]/fpkm_matrix_yap1[ "S449SC_2"] ))
+names(fpkm_matrix_yap1_percent ) = c("FocusY/SC", "PLCY/SC", "S475Y/SC", "S449Y/SC", "S449Y_2/SC_2",  "FocusYT/SC", "PLCYT/SC", "S475YT/SC", "S449YT/SC", "S449YT_2/SC_2")
 #barplot(fpkm_matrix_yap1, las=2)
 barplot(fpkm_matrix_yap1_percent, las=2,  cex.names=.7, ylab= "percent KD", main = "yap1 based on fpkm values")
 
 ```
+S449Y_2 appears to have worked!  Unfortunately, S447T_2 appears to have failed.  It will be more difficult to justify removing samples that didn't knock down its target.  
+
 Fit the model and estimate dispersion value.
 ```{r}
 y_for_DE <- DGEList(counts=counts5)
@@ -224,7 +264,7 @@ ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
 head(listAttributes(ensembl), 30)
 hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
 
-fpkm_log_matrix2 = rpkm (y_for_DE, gene.length=counts1[keep,"Length"], log = TRUE)
+fpkm_log_matrix2 = rpkm (y_for_DE, gene.length=counts1[keep,"Length"], log = FALSE)
 index = match (genes, hgnc_swissprot$ensembl_gene_id)
 results = data.frame(hgnc_swissprot[index,], counts5, fpkm_log_matrix2, lrt_T_table, lrt_Y_table, lrt_YT_table)
 colnames(results) = c(
@@ -240,9 +280,9 @@ write.table(results, paste0("~/Downloads/Chen_", curr_date, ".xls"), row.names=F
 ```
 Heatmap of DE genes.  
 ```{r}
-pheatmap(fpkm_log_matrix2[order(lrt_T_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusT", "PLCT", "S449T", "S475T")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(fpkm_log_matrix2[order(lrt_T_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusT_1", "PLCT_1", "S449T_1", "S475T_1", "S449T_2")], cluster_rows=FALSE, cluster_cols=FALSE)
 
-pheatmap(fpkm_log_matrix2[order(lrt_Y_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusY", "PLCY", "S449Y", "S475Y")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(fpkm_log_matrix2[order(lrt_Y_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusY_1", "PLCY_1", "S449Y_1", "S475Y_1", "S449Y_2")], cluster_rows=FALSE, cluster_cols=FALSE)
 pheatmap(fpkm_log_matrix2[order(lrt_YT_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],colnames(fpkm_log_matrix2)[grep("YT", colnames(fpkm_log_matrix2))] )], cluster_rows=FALSE, cluster_cols=FALSE)
 
 #try this
@@ -250,8 +290,8 @@ mean_values = (fit$coefficients %*% t(design_matrix2))
 colnames(mean_values) = colnames(counts5)
 rownames(mean_values) = rownames(counts5)
 
-pheatmap(mean_values[order(lrt_T_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusT", "PLCT", "S449T", "S475T")], cluster_rows=FALSE, cluster_cols=FALSE)
-pheatmap(mean_values[order(lrt_Y_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusY", "PLCY", "S449Y", "S475Y")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(mean_values[order(lrt_T_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusT_1", "PLCT_1", "S449T_1", "S475T_1", "S449T_2")], cluster_rows=FALSE, cluster_cols=FALSE)
+pheatmap(mean_values[order(lrt_Y_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],"FocusY_1", "PLCY_1", "S449Y_1", "S475Y_1", "S449Y_2")], cluster_rows=FALSE, cluster_cols=FALSE)
 pheatmap(mean_values[order(lrt_YT_table$PValue, decreasing = F)[1:20],c(colnames(fpkm_log_matrix2)[grep("SC", colnames(fpkm_log_matrix2))],colnames(fpkm_log_matrix2)[grep("YT", colnames(fpkm_log_matrix2))] )], cluster_rows=FALSE, cluster_cols=TRUE)
 
 #edit column description
