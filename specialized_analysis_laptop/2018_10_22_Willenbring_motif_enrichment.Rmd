@@ -27,9 +27,9 @@ require(rtfbs)
 data_DE = read.delim("~/Documents/willenbring/motif_analysis_2018_09/Willenbring_Supplementary_Table_DE_MF_vs_Heps.txt", sep="\t", fill=T, header=T)
 colnames(data_DE)
 dim(data_DE)
-
+data_DE$Entrez2 = strsplit2(as.character(data_DE$Entrez), " /// ")[,1]
 ```
-
+Looking for genes that are different betwee MF and Heps & iHeps and between Heps and iHeps. 
 ```{r}
 length(which(data_DE[, "False.discovery.rate"]<0.05))
 length(which(data_DE[, "False.discovery.rate.1"]<0.05))
@@ -47,15 +47,15 @@ dim(focus)
 pheatmap(focus, labels_row=data_DE[which(index1 & index2 & index3 & index4),"Symbol"])     
 
 ```
-
+Get the chromosome coordinates for each gene's transcription start site (TSS).  
 ```{r}
-#ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl", host = "useast.ensembl.org")
-ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
+ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl", host = "useast.ensembl.org")
 attributes = listAttributes(ensembl)
 #attributes 
-annotation_info = getBM(attributes = c("entrezgene","chromosome_name", "transcript_start","transcript_end", "strand"), filters = "entrezgene", values = data_DE$Entrez, mart=ensembl)
+annotation_info = getBM(attributes = c("entrezgene","chromosome_name", "transcript_start","transcript_end", "strand"), filters = "entrezgene", values = as.character(data_DE$Entrez2), mart=ensembl)
 head(annotation_info)
 ```
+
 
 ```{r}
 #  ------------start-----------------------------------end-->>>>>>>>
@@ -73,10 +73,12 @@ annotation_info[, "strand2"] = unlist(lapply (annotation_info$strand, function(x
 
 #checked these coordiantes in the genome browser
 
-index = match (data_DE$Entrez, annotation_info$entrezgene)
+index = match (data_DE$Entrez2, annotation_info$entrezgene)
 data_DE2 = cbind(annotation_info[index,], data_DE)
 
 #lots of entrez IDs missing because they look like this "15507 /// 15508"
+# picking the first of the two for now. 
+#probe probably binds to both but it I am not sure I want to include both or just pick one. 
 head(data_DE2)
 ```
 
@@ -119,3 +121,46 @@ writeXStringSet(myseqs_foreground, "~/Documents/willenbring/foreground_promoters
 myseqs_foreground
 
 ```
+meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 Documents/willenbring/background_promoters.fa Documents/willenbring/background_markov_model.txt
+19541 1001 1001 1001.0 19560541
+DOM-4DHJGH6-LT:~ tfriedrich$ 
+Scan for known motifs of genes that are expressed in MFs.  Takes a long time to run. 
+```{r}
+# redo fisher test (should have compared foreground to background-foreground instead of foreground to background)
+expressedgenes = data_DE2[which(!(is.na(data_DE2[,"MFs.1"]))),"Symbol"]  #hopefully these are all genes expressed (assuming someone did the filtering if they are in the excel file)
+matches_fg_per_gene = list()
+matches_bg_per_gene = list()
+tests_per_gene = list()
+for ( gene in expressedgenes ) {
+  motif = MotifDb [grep (gene, values (MotifDb)$geneSymbol, ignore.case=TRUE)]
+  if ( length(motif) >0 ) {
+    matches_fg = list()  #multiple motifs per gene 
+    matches_bg = list()
+    fishertest = list()
+    for (x in 1:length(motif)) {
+      motif_pwm = motif[[x]]
+      matches_fg[[x]] = lapply (myseqs_foreground, function(x) countPWM(motif_pwm, x))
+      matches_bg[[x]] = lapply (myseqs_notforeground, function(x) countPWM(motif_pwm, x))
+      test_results = fisher.test( cbind(c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0)) )) )
+      fishertest[[x]] = c(gene, x, test_results$p.value, c(length(which(matches_fg[[x]]>0)), length(which(matches_fg[[x]]==0))), c(length(which(matches_bg[[x]]>0)), length(which(matches_bg[[x]]==0))) )
+    }
+    matches_fg_per_gene[[gene]] = matches_fg
+    matches_bg_per_gene[[gene]] = matches_bg
+    tests_per_gene[[gene]] = fishertest
+  }
+}
+all_fisher_tests = matrix( unlist(tests_per_gene), nc=7, byrow =T)
+colnames(all_fisher_tests) = c("TF", "TF_motif_num", "fisher_test_pvalue", "fg_hit", "fg_no_hit", "bg_hit", "bg_no_hit")
+```
+
+Adjust p-values. 
+```{r}
+
+all_fisher_tests_corr_pvalue= p.adjust(as.numeric(all_fisher_tests[,"fisher_test_pvalue"]), method="fdr")
+
+length(which(all_fisher_tests_corr_pvalue <= 0.05))
+
+write.table(cbind(all_fisher_tests, all_fisher_tests_corr_pvalue), "/Users/tfriedrich/Documents/Willenbring/TF_motif_fisher_tests_v3_adjusted.xls", sep="\t", quote=F, row.names = F, col.names = T)
+  
+```
+
