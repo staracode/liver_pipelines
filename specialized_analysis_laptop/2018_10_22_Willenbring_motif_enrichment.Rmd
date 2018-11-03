@@ -121,8 +121,10 @@ writeXStringSet(myseqs_foreground, "~/Documents/willenbring/foreground_promoters
 myseqs_foreground
 
 ```
-meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 Documents/willenbring/background_promoters.fa Documents/willenbring/background_markov_model.txt
+meme/libexec/meme-5.0.2/fasta-get-markov -dna -m 2 Documents/willenbring/background_promoters_version2.fa Documents/willenbring/background_markov_model_version2.txt 
 19541 1001 1001 1001.0 19560541
+meme/bin/meme Documents/willenbring/foreground_promoters_version2.fa -dna -oc ./meme6  -mod zoops -nmotifs 6 -minw 6 -maxw 12 -objfun classic -revcomp  -bfile Documents/willenbring/background_markov_model_version2.txt
+
 DOM-4DHJGH6-LT:~ tfriedrich$ 
 Scan for known motifs of genes that are expressed in MFs.  Takes a long time to run. 
 ```{r}
@@ -162,5 +164,100 @@ length(which(all_fisher_tests_corr_pvalue <= 0.05))
 
 write.table(cbind(all_fisher_tests, all_fisher_tests_corr_pvalue), "/Users/tfriedrich/Documents/Willenbring/TF_motif_fisher_tests_v3_adjusted.xls", sep="\t", quote=F, row.names = F, col.names = T)
   
+save(matches_fg_per_gene, matches_bg_per_gene, tests_per_gene, file = "/Users/tfriedrich/Documents/Willenbring/fisher_third_attempt.Robj")
 ```
 
+```{r}
+unzip_tf_locations <- function (matches____per_gene){
+  tf_matrix = list()
+  inc = 1
+  for (tf in matches____per_gene){
+    tf_matrix[[inc]] =  matrix(unlist(tf), byrow=T, nc=length(tf))
+    inc = inc + 1
+  }
+
+  tf_names = list()
+  inc = 1
+  for (tfname in  names(matches____per_gene)){
+    length_value = length(matches____per_gene[[tfname]])
+    for (x in 1:length_value){
+      tf_names[[inc]] = paste(tfname,x, sep="_" )
+      inc = inc + 1
+    }
+  }
+  
+  tf_matrix2 = do.call(cbind, tf_matrix)
+  dim(tf_matrix2)
+  rownames(tf_matrix2) = names(matches____per_gene$Ace[[1]])
+  colnames(tf_matrix2) = unlist(tf_names)
+  
+  return(tf_matrix2)  # motif count per location 
+}
+
+tf_matrix2_fg = unzip_tf_locations(matches_fg_per_gene)
+tf_matrix2_bg = unzip_tf_locations(matches_bg_per_gene)
+```
+
+make table
+```{r}
+genes = data_DE2
+
+#remove rows where I couldn't link a gene name to a location
+genes2 = genes[which(!is.na(genes$chromosome_name)),]
+
+tf_matrix2 =tf_matrix2_bg
+promoter_names = paste(genes2$chrom, genes2$start, genes2$end, genes2$strand2, sep="||")
+index = match( rownames(tf_matrix2), promoter_names)
+#cbind(rownames(tf_matrix2), promoter_names[index])
+
+#y values
+y_regression = genes2[index, "Fold.change..log2."]
+length(y_regression)
+#remove NA
+y_regression2 = y_regression[which( !is.na(y_regression))]
+
+#remove NA labels
+tf_matrix3 = tf_matrix2[which(!is.na(y_regression)),]
+tf_matrix4 = as.matrix(tf_matrix3)
+
+#check dimensions to see if they match 
+dim(tf_matrix4)
+length(y_regression2)
+
+
+#new = data.frame(y_regression2, tf_matrix4)
+#model = lm(y_regression2~., new)
+```
+```{r}
+#write to file to run in python 
+write.table(tf_matrix4, "~/Downloads/X_values.xls", sep="\t", col.names=T, row.names=F)
+write.table(y_regression2, "~/Downloads/y_values.xls", sep="\t", col.names=T, row.names=F)
+write.table(y_classifier2, "~/Downloads/y_values_binary.xls", sep="\t", col.names=T, row.names=F)
+
+```
+plot results of regression RF
+```{r}
+#depth = 2, estimators = 20
+temp = read.table("~/Downloads/output_regression2.txt")
+colnames(tf_matrix4)[which (temp$V1>0)]
+barplot(temp[which(temp$V1>0.003), "V1"], names.arg = colnames(tf_matrix4)[which (temp$V1>0.003)], las=2   )
+
+cor(y_regression2,tf_matrix4[,"Hmga2_1"])
+cor(y_regression2,tf_matrix4[,"Mybl2_1"])
+cor(y_regression2,tf_matrix4[,"Cebpb_8"])
+```
+make logos
+```{r}
+expressedgenes = data_DE2[which(!(is.na(data_DE2[,"MFs.1"]))),"Symbol"]  
+for ( gene in expressedgenes ) {
+  motif = MotifDb [grep (gene, values (MotifDb)$geneSymbol, ignore.case=TRUE)]
+  if ( length(motif) >0 ) {
+    for (x in 1:length(motif)) {
+     
+      pdf(paste0("~/Downloads/motifs/motif_", gene, "_", as.character(x), ".pdf"))
+      seqLogo (motif[[x]])
+      dev.off()
+    }
+  }
+}
+```

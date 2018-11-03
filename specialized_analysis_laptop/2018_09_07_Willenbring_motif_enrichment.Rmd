@@ -313,7 +313,8 @@ for ( gene in expressedgenes ) {
   motif = MotifDb [grep (gene, values (MotifDb)$geneSymbol, ignore.case=TRUE)]
   if ( length(motif) >0 ) {
     for (x in 1:length(motif)) {
-      pdf(paste0("~/Downloads/motifs/motif_", gene, "_", str(x), ".pdf"))
+     
+      pdf(paste0("~/Downloads/motifs/motif_", gene, "_", as.character(x), ".pdf"))
       seqLogo (motif[[x]])
       dev.off()
     }
