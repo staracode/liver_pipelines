@@ -238,13 +238,19 @@ write.table(y_classifier2, "~/Downloads/y_values_binary.xls", sep="\t", col.name
 plot results of regression RF
 ```{r}
 #depth = 2, estimators = 20
-temp = read.table("~/Downloads/output_regression2.txt")
+temp = read.table("~/Downloads/output_regression3.txt")
 colnames(tf_matrix4)[which (temp$V1>0)]
 barplot(temp[which(temp$V1>0.003), "V1"], names.arg = colnames(tf_matrix4)[which (temp$V1>0.003)], las=2   )
 
 cor(y_regression2,tf_matrix4[,"Hmga2_1"])
 cor(y_regression2,tf_matrix4[,"Mybl2_1"])
 cor(y_regression2,tf_matrix4[,"Cebpb_8"])
+cor(tf_matrix4[,"Mybl2_7"],tf_matrix4[,"Hmga2_1"])
+cor(tf_matrix4[,"Cebpb_8"],tf_matrix4[,"Hmga2_2"])
+cor_with_hmga2_1 = apply(tf_matrix4, 2, function(x) cor(x,tf_matrix4[,"Hmga2_1"]))
+colnames(tf_matrix4) [which(cor_with_hmga2_1< -.5)]
+
+write.table(  (cbind(y_regression2,tf_matrix4[,"Hmga2_2"])),"hmga2_2_logfc.txt", sep="\t")
 ```
 make logos
 ```{r}
@@ -260,4 +266,24 @@ for ( gene in expressedgenes ) {
     }
   }
 }
+```
+
+```{r}
+myseqs_DE_genes = get_promoter_sequences (data_DE2[which(data_DE2$False.discovery.rate < 0.01),])
+
+names(myseqs_DE_genes)
+tf_matrix2_bg
+
+for (x in colnames(tf_matrix2_bg)){
+  fg_yes = tf_matrix2_bg[rownames(tf_matrix2_bg) %in% names(myseqs_DE_genes) ,x]
+  
+}
+```
+```{r}
+pdf("all_motif_expression_plots.pdf")
+par(mfrow=(c(2,5)))
+for (geneName in colnames(tf_matrix4)){
+ smoothScatter (y_regression2,tf_matrix4[,geneName], main=geneName)
+}
+dev.off()
 ```
