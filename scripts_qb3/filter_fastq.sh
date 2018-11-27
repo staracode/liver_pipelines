@@ -50,11 +50,19 @@ fi
 
 # Input Fastq Files
 fastq="${INPUT[$SGE_TASK_ID]}"
-fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+if [[ $fastq == *"fq.gz"* ]]; then
+	fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'` 
+else
+	fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
+fi 
 
 if [ "${#INPUT2[@]}" -gt 1 ]; then
 	fastq2="${INPUT2[$SGE_TASK_ID]}"
-	fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+	if [[ $fastq == *"fq.gz"* ]]; then
+		fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  
+	else
+		fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
+	fi 
 fi
 
 # Use this to debug issues
