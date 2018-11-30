@@ -52,27 +52,31 @@ if [ "${#INPUT2[@]}" -gt 1 ]; then
 		fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'`  
 	fi 
 fi 
+
 # Do I want to change fastq name to sample name here? 
 if [[ $fastq == *"fq.gz"* ]]; then
-	prefix=`echo $fastq | sed 's/.fq.gz/_algn_/'`
+	prefix=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
 else
-	prefix=`echo $fastq | sed 's/.fastq.gz/_algn_/'`
+	prefix=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
 fi
 
 # Output directory
-if [ ! -d "$BIN_DIR" ]; then
-	mkdir /netapp/home/tfriedrich/$DIR_NAME/algn/
+OUTPUTDIR=/netapp/home/tfriedrich/$DIR_NAME/algn/
+if [ ! -d "$OUTPUTDIR" ]; then
+	mkdir $OUTPUTDIR
 fi 
-
 
 FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
 
-echo /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix
+echo $OUTPUTDIR/$prefix
 echo $prefix
+echo $FASTQ_TRIM_DIR'/'$fastq_trim
+echo $FASTQ_TRIM_DIR'/'$fastq_trim2 
 INDEX=/netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26
 
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim -2 $FASTQ_TRIM_DIR'/'$fastq_trim2
+	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim -2 $FASTQ_TRIM_DIR'/'$fastq_trim2  | samtools view -bS - > $OUTPUTDIR/$prefix
+
 else
-	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim 
+	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -U $FASTQ_TRIM_DIR'/'$fastq_trim | samtools view -bS - > $OUTPUTDIR/$prefix
 fi 

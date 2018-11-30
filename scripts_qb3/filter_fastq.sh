@@ -32,6 +32,12 @@ do
 	INPUT+=($f1)
 	if [[ $f2 == *"fq.gz"* ]]; then
 		INPUT2+=($f2)  
+	else
+		if [[ $fastq == *"fastq.gz"* ]]; then 
+			INPUT2+=($f2)
+		else
+			echo "unknown type of mate paired sequence file suffix"
+		fi 
 	fi
 done <"$FILE1"
 echo "${INPUT[@]}"
