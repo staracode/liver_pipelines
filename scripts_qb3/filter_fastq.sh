@@ -33,7 +33,7 @@ do
 	if [[ $f2 == *"fq.gz"* ]]; then
 		INPUT2+=($f2)  
 	else
-		if [[ $fastq == *"fastq.gz"* ]]; then 
+		if [[ $f2 == *"fastq.gz"* ]]; then 
 			INPUT2+=($f2)
 		else
 			echo "unknown type of mate paired sequence file suffix"
@@ -59,12 +59,12 @@ fastq="${INPUT[$SGE_TASK_ID]}"
 if [[ $fastq == *"fq.gz"* ]]; then
 	fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'` 
 else
-	fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
+	fastq_trim=`echo $fastq | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
 fi 
 
 if [ "${#INPUT2[@]}" -gt 1 ]; then
 	fastq2="${INPUT2[$SGE_TASK_ID]}"
-	if [[ $fastq == *"fq.gz"* ]]; then
+	if [[ $fastq2 == *"fq.gz"* ]]; then
 		fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  
 	else
 		fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
