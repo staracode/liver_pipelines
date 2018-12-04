@@ -75,8 +75,10 @@ echo $FASTQ_TRIM_DIR'/'$fastq_trim2
 INDEX=/netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26
 
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim -2 $FASTQ_TRIM_DIR'/'$fastq_trim2  | samtools view -bS - > $OUTPUTDIR/$prefix
+	#bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim -2 $FASTQ_TRIM_DIR'/'$fastq_trim2  | samtools view -bS - > $OUTPUTDIR/$prefix
+	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim -2 $FASTQ_TRIM_DIR'/'$fastq_trim2  |  samtools view -bSu - | samtools sort - $OUTPUTDIR/$prefix
 
 else
-	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -U $FASTQ_TRIM_DIR'/'$fastq_trim | samtools view -bS - > $OUTPUTDIR/$prefix
+	#bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -U $FASTQ_TRIM_DIR'/'$fastq_trim | samtools view -bS - > $OUTPUTDIR/$prefix
+	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -U $FASTQ_TRIM_DIR'/'$fastq_trim | samtools view -bSu - | samtools sort - $OUTPUTDIR/$prefix
 fi 
