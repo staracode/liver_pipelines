@@ -55,9 +55,9 @@ fi
 
 # Do I want to change fastq name to sample name here? 
 if [[ $fastq == *"fq.gz"* ]]; then
-	prefix=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
+	prefix=`echo $fastq | sed 's/.fq.gz/_algn/'`
 else
-	prefix=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
+	prefix=`echo $fastq | sed 's/.fastq.gz/_algn/'`
 fi
 
 # Output directory

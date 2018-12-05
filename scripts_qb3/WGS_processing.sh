@@ -55,19 +55,25 @@ fastq="${INPUT[$SGE_TASK_ID]}"
 
 # Do I want to change fastq name to sample name here? 
 if [[ $fastq == *"fq.gz"* ]]; then
+	#suffix1=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
+	#suffix2=`echo $fastq | sed 's/.fq.gz/_algn_sorted.bam/'`
+	#suffix3=`echo $fastq | sed 's/.fq.gz/_algn_sorted_rmDup.bam/'`
+	#suffix4=`echo $fastq | sed 's/.fq.gz/_algn_sorted_rmDup.txt/'`
 	suffix1=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
-	suffix2=`echo $fastq | sed 's/.fq.gz/_algn_sorted.bam/'`
-	suffix3=`echo $fastq | sed 's/.fq.gz/_algn_sorted_rmDup.bam/'`
-	suffix4=`echo $fastq | sed 's/.fq.gz/_algn_sorted_rmDup.txt/'`
+	suffix2=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.bam/'`
+	suffix3=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.txt/'`
 else
+	#suffix1=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
+	#suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_sorted.bam/'`
+	#suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_sorted_rmDup.bam/'`
+	#suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_sorted_rmDup.txt/'`
 	suffix1=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
-	suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_sorted.bam/'`
-	suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_sorted_rmDup.bam/'`
-	suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_sorted_rmDup.txt/'`
+	suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.bam/'`
+	suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.txt/'`
 fi
 
 # Output directory
-OUTPUTDIR=/netapp/home/tfriedrich/$DIR_NAME/algn2/
+OUTPUTDIR=/netapp/home/tfriedrich/$DIR_NAME/algn/
 if [ ! -d "$OUTPUTDIR" ]; then
 	mkdir $OUTPUTDIR
 fi 
@@ -92,5 +98,6 @@ echo $OUTPUTDIR/$prefix
 
 #./jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates I=mattis/algn/7017_ATCACG_L005_R1_001_algn.bam  O=test.bam  M=test.txt
 #bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates ASSUME_SORTED=true I=$OUTPUTDIR/$suffix2  O=$OUTPUTDIR/$suffix3  M=$OUTPUTDIR/$suffix4
-bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates ASSUME_SORTED=true I=$OUTPUTDIR/$suffix2  O=$OUTPUTDIR/$suffix3  M=$OUTPUTDIR/$suffix4
+bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates ASSUME_SORTED=true I=$OUTPUTDIR/$suffix1  O=$OUTPUTDIR/$suffix2  M=$OUTPUTDIR/$suffix3
+
 
