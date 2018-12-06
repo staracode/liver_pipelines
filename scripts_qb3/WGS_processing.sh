@@ -22,7 +22,6 @@ echo $samples
 
 # Read in file containing fastq file locations. 
 INPUT=(0)
-#INPUT2=(0)
 while IFS=$'\t' read -r f1 f2 f3 #fastq, mate pair, label, replicate?
 do
 	printf 'FASTQ: %s, PAIR: %s\n' "$f1" "$f2" 
@@ -30,46 +29,25 @@ do
 	# check that file is fastq.gz 
 	# [ -z "$line" ] && continue
 	INPUT+=($f1)
-	#if [[ $f2 == *"fq.gz"* ]]; then
-	#	INPUT2+=($f2)  
-	#fi 
 done <"$FILE1"
 echo "${INPUT[@]}"
 
 # paired end 
 fastq="${INPUT[$SGE_TASK_ID]}"
-#if [[ $fastq == *"fq.gz"* ]]; then
-#	fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`
-#else
-#	fastq_trim=`echo $fastq | sed 's/.fastq.gz/_trimmed.fastq.gz/'`
-#fi 
-
-#if [ "${#INPUT2[@]}" -gt 1 ]; then
-#	fastq2="${INPUT2[$SGE_TASK_ID]}"
-#	if [[ $fastq == *"fq.gz"* ]]; then
-#		fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`
-#	else
-#		fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'`  
-#	fi 
-#fi 
 
 # Do I want to change fastq name to sample name here? 
 if [[ $fastq == *"fq.gz"* ]]; then
-	#suffix1=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
-	#suffix2=`echo $fastq | sed 's/.fq.gz/_algn_sorted.bam/'`
-	#suffix3=`echo $fastq | sed 's/.fq.gz/_algn_sorted_rmDup.bam/'`
-	#suffix4=`echo $fastq | sed 's/.fq.gz/_algn_sorted_rmDup.txt/'`
 	suffix1=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
 	suffix2=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.bam/'`
 	suffix3=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.txt/'`
+	suffix4=`echo $fastq | sed 's/.fq.gz/_algn_rmDup_addRG.bam/'`
+	suffix5=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels.g.vcf/'`
 else
-	#suffix1=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
-	#suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_sorted.bam/'`
-	#suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_sorted_rmDup.bam/'`
-	#suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_sorted_rmDup.txt/'`
 	suffix1=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
 	suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.bam/'`
 	suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.txt/'`
+	suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup_addRG.bam/'`
+	suffix5=`echo $fastq | sed 's/.fastq.gz/_raw_snps_indels.g.vcf/'`
 fi
 
 # Output directory
@@ -78,26 +56,27 @@ if [ ! -d "$OUTPUTDIR" ]; then
 	mkdir $OUTPUTDIR
 fi 
 
-#FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
-
 echo $OUTPUTDIR/$prefix
-#echo $prefix
-#echo $FASTQ_TRIM_DIR'/'$fastq_trim
-#echo $FASTQ_TRIM_DIR'/'$fastq_trim2 
-#INDEX=/netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26
 
-#if [ "${#INPUT2[@]}" -gt 1 ]; then
-#	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -1 $FASTQ_TRIM_DIR'/'$fastq_trim -2 $FASTQ_TRIM_DIR'/'$fastq_trim2  | samtools view -bS - > $OUTPUTDIR/$prefix
+#remove duplicates
+#bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates ASSUME_SORTED=true I=$OUTPUTDIR/$suffix1  O=$OUTPUTDIR/$suffix2  M=$OUTPUTDIR/$suffix3
 
-#else
-#	bowtie2 --no-unal -x  /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/bowtie2/hg38_ucsc_2018_Nov_26   -U $FASTQ_TRIM_DIR'/'$fastq_trim | samtools view -bS - > $OUTPUTDIR/$prefix
-#fi 
+# add read groups (so that I can merge later? )
+#bin/jdk1.8.0_191/bin/java -jar bin/picard.jar AddOrReplaceReadGroups \
+#       I=$OUTPUTDIR/$suffix2 \
+#       O=$OUTPUTDIR/$suffix4 \
+#       RGID=4 \
+#       RGLB=lib1 \
+#       RGPL=illumina \
+#       RGPU=unit1 \
+#       RGSM=20
 
-#samtools view -h $OUTPUTDIR/$suffix1 | samtools sort  >  $OUTPUTDIR/$suffix2
-#samtools view -h $OUTPUTDIR/$suffix2 | samtools sort - $OUTPUTDIR/$suffix2
+#samtools index $OUTPUTDIR/$suffix4
 
-#./jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates I=mattis/algn/7017_ATCACG_L005_R1_001_algn.bam  O=test.bam  M=test.txt
-#bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates ASSUME_SORTED=true I=$OUTPUTDIR/$suffix2  O=$OUTPUTDIR/$suffix3  M=$OUTPUTDIR/$suffix4
-bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates ASSUME_SORTED=true I=$OUTPUTDIR/$suffix1  O=$OUTPUTDIR/$suffix2  M=$OUTPUTDIR/$suffix3
-
+bin/jdk1.8.0_191/bin/java -jar /netapp/home/tfriedrich/bin/gatk-4.0.11.0/gatk-package-4.0.11.0-local.jar \
+   HaplotypeCaller \
+  -R /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/all_chromosomes.fa \
+  -I $OUTPUTDIR/$suffix4 \
+  -O $OUTPUTDIR/$suffix5 \
+  --emit-ref-confidence GVCF
 
