@@ -42,12 +42,16 @@ if [[ $fastq == *"fq.gz"* ]]; then
 	suffix3=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.txt/'`
 	suffix4=`echo $fastq | sed 's/.fq.gz/_algn_rmDup_addRG.bam/'`
 	suffix5=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels.g.vcf/'`
+	suffix6=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels_genotype.g.vcf/'`
+	suffix7=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels_genotype_filtered.g.vcf/'`
 else
 	suffix1=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
 	suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.bam/'`
 	suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.txt/'`
 	suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup_addRG.bam/'`
 	suffix5=`echo $fastq | sed 's/.fastq.gz/_raw_snps_indels.g.vcf/'`
+	suffix6=`echo $fastq | sed 's/.fastq.gz/_raw_snps_indels_genotype.g.vcf/'`
+	suffix7=`echo $fastq | sed 's/.fastq.gz/_raw_snps_indels_genotype_filtered.g.vcf/'`
 fi
 
 # Output directory
@@ -73,10 +77,22 @@ echo $OUTPUTDIR/$prefix
 
 #samtools index $OUTPUTDIR/$suffix4
 
+#bin/jdk1.8.0_191/bin/java -jar /netapp/home/tfriedrich/bin/gatk-4.0.11.0/gatk-package-4.0.11.0-local.jar \
+#   HaplotypeCaller \
+#  -R /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/all_chromosomes.fa \
+#  -I $OUTPUTDIR/$suffix4 \
+#  -O $OUTPUTDIR/$suffix5 \
+#  --emit-ref-confidence GVCF
+
 bin/jdk1.8.0_191/bin/java -jar /netapp/home/tfriedrich/bin/gatk-4.0.11.0/gatk-package-4.0.11.0-local.jar \
-   HaplotypeCaller \
+   GenotypeGVCFs \
   -R /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/all_chromosomes.fa \
-  -I $OUTPUTDIR/$suffix4 \
-  -O $OUTPUTDIR/$suffix5 \
-  --emit-ref-confidence GVCF
+  -V $OUTPUTDIR/$suffix5 \
+  -O $OUTPUTDIR/$suffix6
+
+bin/jdk1.8.0_191/bin/java -jar /netapp/home/tfriedrich/bin/gatk-4.0.11.0/gatk-package-4.0.11.0-local.jar \
+ FilterVcf \
+ --INPUT $OUTPUTDIR/$suffix6 \
+ --OUTPUT $OUTPUTDIR/$suffix7 \
+ --MIN_DP 30 --MIN_QD 30
 
