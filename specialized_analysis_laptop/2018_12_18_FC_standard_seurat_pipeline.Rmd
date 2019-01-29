@@ -128,3 +128,8 @@ DotPlot(pbmc, marker_genes)
 pbmc=buildClusterTree(pbmc,do.reorder = TRUE,reorder.numeric = TRUE,pcs.use = 1:11)
 plotClusterTree(pbmc)
 ```
+
+```{r}
+markers <- FindMarkers(object = pbmc, ident.1 = 5)
+write.table(markers, "cluster5.txt", sep="\t")
+```
