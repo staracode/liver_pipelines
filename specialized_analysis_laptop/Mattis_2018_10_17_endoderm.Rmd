@@ -180,16 +180,34 @@ HEATMAP_WIDTH  <- 15
 #annotation <- data.frame(
 #  Condition1= Condition1, Condition2=Condition2)
 #rownames(annotation) <- colnames(fpkm_matrix)
+pdf("~/Box Sync/laptop_folders/Mattis/endoderm_project/GO-0008219.pdf")
 pheatmap(results_go1[,grep ("_fpkm", colnames(results_go1))],
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
-         , clustering_distance_rows="correlation" # or: euclidean
+         #, clustering_distance_rows="correlation" # or: euclidean
          , clustering_distance_cols="correlation"
          , clustering_method="complete"
          , display_numbers=FALSE
-         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
          , show_rownames=FALSE, show_colnames = TRUE
          #, annotation = annotation
          , fontsize_row=3.5)
+dev.off()
 
+library(plotly)
+packageVersion('plotly')
+m <- as.matrix(results_go1[1:100,grep ("_fpkm", colnames(results_go1))])
+p <- plot_ly(
+    #x = c("a", "b", "c"), y = c("d", "e", "f"),
+    y = rownames(results_go1[1:100,grep ("_fpkm", colnames(results_go1))]), x = colnames(results_go1[1:100,grep ("_fpkm", colnames(results_go1))]), 
+    z = m, type = "heatmap"
+)
+# Create a shareable link to your chart
+# Set up API credentials: https://plot.ly/r/getting-started
+chart_link = api_create(p, filename="heatmap-cat")
+chart_link
+
+
+Sys.setenv("plotly_username"="tara.friedrich")
+Sys.setenv("plotly_api_key"="0VBILd5Cg74iqNBG8aEl")
 ```
