@@ -67,7 +67,7 @@ GenePlot(object = pbmc, gene1 = "nUMI", gene2 = "nGene")
 # 'gate'.  -Inf and Inf should be used if you don't want a lower or upper
 # threshold.
 pbmc <- FilterCells(object = pbmc, subset.names = c("nGene", "percent.mito"), 
-    low.thresholds = c(200, -Inf), high.thresholds = c(8000, 0.05))
+    low.thresholds = c(200, -Inf), high.thresholds = c(8000, 0.50))
 ```
 
 
@@ -83,13 +83,14 @@ pbmc <- RunPCA(object = pbmc, pc.genes = pbmc@var.genes, do.print = TRUE, pcs.pr
 ```
 
 ```{r}
-VizPCA(object = pbmc, pcs.use = 1:2)
+VizPCA(object = pbmc, pcs.use = 1:5)
 
 ```
 
 ```{r}
 PCAPlot(object = pbmc, dim.1 = 1, dim.2 = 2)
-
+PCAPlot(object = pbmc, dim.1 = 1, dim.2 = 3)
+PCAPlot(object = pbmc, dim.1 = 2, dim.2 = 3)
 ```
 
 ```{r}
@@ -103,10 +104,15 @@ vlnPlot(pbmc,c("Hnf4a", "Alb", "Fah"))
 
 ```
 ```{r}
-pbmc <- FindClusters(object = pbmc, reduction.type = "pca", dims.use = 1:10, resolution = 0.6, print.output = 0, save.SNN = TRUE)
+pbmc <- FindClusters(object = pbmc, reduction.type = "pca", dims.use = 1:5, resolution = 0.6, print.output = 0, save.SNN = TRUE)
 pbmc <- RunTSNE(object = pbmc, dims.use = 1:10, do.fast = TRUE)
+```
+
+
+```{r}
 TSNEPlot(object = pbmc)
 PrintFindClustersParams(object = pbmc)
+VlnPlot(object = pbmc, features.plot = c("nGene", "nUMI", "percent.mito"), nCol = 3)
 ```
 
 ```{r}
