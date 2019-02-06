@@ -261,8 +261,19 @@ GOBar(circ, display='multiple')
 GOBubble(circ, labels = 1.5)
 GOCircle(circ)
 
-genesInNegProlif =genesInTerm(new( "topGOdata", ontology=onts[3], allGenes = alg, nodeSize=5,
-                 annot=annFUN.org, mapping="org.Mm.eg.db", ID = "ensembl" ), "GO:0008285")
+genesInNegProlif =genesInTerm(new( "topGOdata", ontology=onts[2], allGenes = alg, nodeSize=5,
+                 annot=annFUN.org, mapping="org.Hs.eg.db", ID = "ensembl" ), "GO:0008285")
+pheatmap(results[which(results$ensembl_gene_id %in% genesInNegProlif$`GO:0008285`),grep ("_fpkm", colnames(results_go1))],
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
 ```
 
 
