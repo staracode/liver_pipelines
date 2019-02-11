@@ -115,7 +115,7 @@ pheatmap(fpkm_matrix,
 Fit the model and estimate dispersion value.
 ```{r}
 
-design_matrix <- model.matrix( ~ Condition1 + Condition2 )
+design_matrix <- model.matrix( ~ Condition1 + Condition3 )
 colnames(design_matrix)
 design_matrix
 y_for_DE <- DGEList(counts=counts3)
@@ -142,6 +142,9 @@ hist(lrt_table$PValue)
 ```
 
 
+
+
+
 Format output into excel sheet. 
 ```{r}
 genes = rownames(counts3)
@@ -161,42 +164,62 @@ curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
 write.table(results, paste0("~/Box Sync/laptop_folders//Mattis/endoderm_project/mattis_", curr_date, ".xls"), row.names=rownames(counts3), col.names=NA, sep="\t")
 
 ```
-cell death genes
+
+Heatmap of DE genes
 ```{r}
-go1 = read.table("~/Downloads/GO-0008219.txt", sep="\t")
-dim(go1)
+mean_values = 2^((fit$coefficients) %*% t(design_matrix) )
+colnames(mean_values) = colnames (counts3)
 
-go1[, "gene"] = sub ("UniProtKB:", "", go1$V1)
-
-#results_go1 = results[which(results$hgnc_symbol %in% go1$gene),]
-
-#convert uniprot to gene symbol
-annotation <- getBM(attributes=c("uniprotswissprot", "hgnc_symbol", "uniprot_gn"), filters="uniprotswissprot", values=go1[, "gene"], mart=ensembl)
-
-index_go1 = match ( go1$gene, annotation$uniprot_gn)
-go1_gn = cbind( annotation[index_go1, ], go1 )
-
-results_go1 = results[which(results$hgnc_symbol %in% go1_gn$hgnc_symbol[!is.na(go1_gn$hgnc_symbol)]),]
-dim(results_go1)
-
-HEATMAP_HEIGHT <- 45 # inchescol
-HEATMAP_WIDTH  <- 15
-#annotation <- data.frame(
-#  Condition1= Condition1, Condition2=Condition2)
-#rownames(annotation) <- colnames(fpkm_matrix)
-pdf("~/Box Sync/laptop_folders/Mattis/endoderm_project/GO-0008219.pdf")
-pheatmap(results_go1[,grep ("_fpkm", colnames(results_go1))],
+de_mean_values = mean_values[rownames(mean_values) %in%  results[which(results[,"adjPVal_BH__dox_vs_nodox_baseline"] <=0.01),"ensembl_gene_id"], ]
+pheatmap(de_mean_values,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
          #, clustering_distance_rows="correlation" # or: euclidean
-         , clustering_distance_cols="correlation"
+         , clustering_distance_cols="euclidean"
          , clustering_method="complete"
          , display_numbers=FALSE
         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
          , show_rownames=FALSE, show_colnames = TRUE
          #, annotation = annotation
          , fontsize_row=3.5)
-dev.off()
+```
+
+cell death genes
+```{r}
+# go1 = read.table("~/Downloads/GO-0008219.txt", sep="\t")
+# dim(go1)
+# 
+# go1[, "gene"] = sub ("UniProtKB:", "", go1$V1)
+# 
+# #results_go1 = results[which(results$hgnc_symbol %in% go1$gene),]
+# 
+# #convert uniprot to gene symbol
+# annotation <- getBM(attributes=c("uniprotswissprot", "hgnc_symbol", "uniprot_gn"), filters="uniprotswissprot", values=go1[, "gene"], mart=ensembl)
+# 
+# index_go1 = match ( go1$gene, annotation$uniprot_gn)
+# go1_gn = cbind( annotation[index_go1, ], go1 )
+# 
+# results_go1 = results[which(results$hgnc_symbol %in% go1_gn$hgnc_symbol[!is.na(go1_gn$hgnc_symbol)]),]
+# dim(results_go1)
+# 
+# HEATMAP_HEIGHT <- 45 # inchescol
+# HEATMAP_WIDTH  <- 15
+# #annotation <- data.frame(
+# #  Condition1= Condition1, Condition2=Condition2)
+# #rownames(annotation) <- colnames(fpkm_matrix)
+# pdf("~/Box Sync/laptop_folders/Mattis/endoderm_project/GO-0008219.pdf")
+# pheatmap(results_go1[,grep ("_fpkm", colnames(results_go1))],
+#          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+#          , scale="row"  # actually scale each row
+#          #, clustering_distance_rows="correlation" # or: euclidean
+#          , clustering_distance_cols="correlation"
+#          , clustering_method="complete"
+#          , display_numbers=FALSE
+#         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+#          , show_rownames=FALSE, show_colnames = TRUE
+#          #, annotation = annotation
+#          , fontsize_row=3.5)
+# dev.off()
 
 ```
 
@@ -261,9 +284,12 @@ GOBar(circ, display='multiple')
 GOBubble(circ, labels = 1.5)
 GOCircle(circ)
 
+```
+Heatmaps for specific GO terms
+```{r}
 genesInNegProlif =genesInTerm(new( "topGOdata", ontology=onts[2], allGenes = alg, nodeSize=5,
                  annot=annFUN.org, mapping="org.Hs.eg.db", ID = "ensembl" ), "GO:0008285")
-pheatmap(results[which(results$ensembl_gene_id %in% genesInNegProlif$`GO:0008285`),grep ("_fpkm", colnames(results_go1))],
+pheatmap(mean_values[which(rownames(mean_values) %in% genesInNegProlif$`GO:0008285`),],
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
          #, clustering_distance_rows="correlation" # or: euclidean
@@ -274,25 +300,58 @@ pheatmap(results[which(results$ensembl_gene_id %in% genesInNegProlif$`GO:0008285
          , show_rownames=FALSE, show_colnames = TRUE
          #, annotation = annotation
          , fontsize_row=3.5)
+
+
+genesInPosCellDiff =genesInTerm(new( "topGOdata", ontology=onts[2], allGenes = alg, nodeSize=5,
+                 annot=annFUN.org, mapping="org.Hs.eg.db", ID = "ensembl" ), "GO:0045597")
+pheatmap(mean_values[which(rownames(mean_values) %in% genesInPosCellDiff$`GO:0045597`),],
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+
+
+genesInGoTerm = genesInTerm(new( "topGOdata", ontology=onts[2], allGenes = alg, nodeSize=5,
+                 annot=annFUN.org, mapping="org.Hs.eg.db", ID = "ensembl" ), "GO:0010469")
+pheatmap(mean_values[which(rownames(mean_values) %in% genesInGoTerm$`GO:0010469`),],
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+
 ```
 
 
 ```{r}
-
-library(plotly)
-packageVersion('plotly')
-m <- as.matrix(results_go1[1:100,grep ("_fpkm", colnames(results_go1))])
-p <- plot_ly(
-    #x = c("a", "b", "c"), y = c("d", "e", "f"),
-    y = rownames(results_go1[1:100,grep ("_fpkm", colnames(results_go1))]), x = colnames(results_go1[1:100,grep ("_fpkm", colnames(results_go1))]), 
-    z = m, type = "heatmap"
-)
-# Create a shareable link to your chart
-# Set up API credentials: https://plot.ly/r/getting-started
-chart_link = api_create(p, filename="heatmap-cat")
-chart_link
-
-
-Sys.setenv("plotly_username"="tara.friedrich")
-Sys.setenv("plotly_api_key"="0VBILd5Cg74iqNBG8aEl")
+# 
+# library(plotly)
+# packageVersion('plotly')
+# m <- as.matrix(results_go1[1:100,grep ("_fpkm", colnames(results_go1))])
+# p <- plot_ly(
+#     #x = c("a", "b", "c"), y = c("d", "e", "f"),
+#     y = rownames(results_go1[1:100,grep ("_fpkm", colnames(results_go1))]), x = colnames(results_go1[1:100,grep ("_fpkm", colnames(results_go1))]), 
+#     z = m, type = "heatmap"
+# )
+# # Create a shareable link to your chart
+# # Set up API credentials: https://plot.ly/r/getting-started
+# chart_link = api_create(p, filename="heatmap-cat")
+# chart_link
+# 
+# 
+# Sys.setenv("plotly_username"="tara.friedrich")
+# Sys.setenv("plotly_api_key"="0VBILd5Cg74iqNBG8aEl")
 ```
+
+
