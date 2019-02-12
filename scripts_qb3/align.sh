@@ -32,19 +32,39 @@ do
 	INPUT+=($f1)
 	if [[ $f2 == *"fq.gz"* ]]; then
 		INPUT2+=($f2)  
+	else
+		if [[ $f2 == *"fastq.gz"* ]]; then 
+			INPUT2+=($f2)
+		else
+			echo "unknown type of mate paired sequence file suffix"
+		fi 
 	fi 
 done <"$FILE1"
 echo "${INPUT[@]}"
 
 # paired end 
 fastq="${INPUT[$SGE_TASK_ID]}"
-fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'`
+if [[ $fastq == *"fq.gz"* ]]; then
+	fastq_trim=`echo $fastq | sed 's/.fq.gz/_trimmed.fq.gz/'` 
+else
+	fastq_trim=`echo $fastq | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
+fi 
+
 if [ "${#INPUT2[@]}" -gt 1 ]; then
 	fastq2="${INPUT2[$SGE_TASK_ID]}"
-	fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+	#fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  # TODO handle fastq.gz
+	if [[ $fastq2 == *"fq.gz"* ]]; then
+		fastq_trim2=`echo $fastq2 | sed 's/.fq.gz/_trimmed.fq.gz/'`  
+	else
+		fastq_trim2=`echo $fastq2 | sed 's/.fastq.gz/_trimmed.fastq.gz/'` 
+	fi 
 fi 
 # Do I want to change fastq name to sample name here? 
-prefix=`echo $fastq | sed 's/.fq.gz/_algn_/'`
+if [[ $fastq == *"fq.gz"* ]]; then
+	prefix=`echo $fastq | sed 's/.fq.gz/_algn_/'`
+else
+	prefix=`echo $fastq | sed 's/.fastq.gz/_algn_/'`
+fi 
 
 # Output directory
 if [ ! -d "$BIN_DIR" ]; then
