@@ -170,8 +170,21 @@ Heatmap of DE genes
 mean_values = 2^((fit$coefficients) %*% t(design_matrix) )
 colnames(mean_values) = colnames (counts3)
 
-de_mean_values = mean_values[rownames(mean_values) %in%  results[which(results[,"adjPVal_BH__dox_vs_nodox_baseline"] <=0.01),"ensembl_gene_id"], ]
+de_mean_values = mean_values[rownames(mean_values) %in%  results[which(results[,"adjPVal_BH__dox_vs_nodox_baseline"] <=0.05),"ensembl_gene_id"], ]
 pheatmap(de_mean_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="euclidean"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+
+de_fpkm_values = results[which(results[,"adjPVal_BH__dox_vs_nodox_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
+pheatmap(de_fpkm_values,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
          #, clustering_distance_rows="correlation" # or: euclidean
