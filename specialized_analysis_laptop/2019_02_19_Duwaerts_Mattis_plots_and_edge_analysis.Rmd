@@ -1,0 +1,58 @@
+---
+title: "Duwaertis and Mattis RNA-seq human iPSC lines"
+author: "Tara Friedrich"
+date: "2/19/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+filename1 = "~/Downloads/readcounts1.txt"
+filename2 = "~/Downloads/readcounts2.txt"
+filename3 = "~/Downloads/readcounts3.txt"
+
+counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
+counts2 = read.table(filename2, header = T, stringsAsFactors = F) 
+counts3 = read.table(filename3, header = T, stringsAsFactors = F) 
+
+counts = cbind(counts1, counts2, counts3)
+dim(counts)
+
+```
+
+
+
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts_matrix = data.matrix(counts[,grep ("bam", colnames(counts))])
+#colnames(counts_matrix) = sub("_1_algn_Aligned", "", matrix(unlist(strsplit(colnames(counts_matrix), "\\.")), byrow =T, ncol=6)[,3])
+colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.")), byrow =T, ncol=3)[,2]
+#rename to reflect useful labels 
+key1 = read.table("~/Downloads/key.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key1)
+key2 = read.table("~/Downloads/Mattis_Duwaerts_metadata.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key2)
+
+renamesample=list()
+for (x in 1:nrow(key1  )){
+  oldname = paste0(sub(".fastq", "", key1$FILE.NAME[x], "_"), "_")
+  #print (key1$CELL.TYPE[x])  #check to make sure every sample is endoderm 
+  newname = paste(key1$FULL.SAMPLE.ID[x], key1$CELL.TYPE[x], key1$DISEASE.STATUS[x], sep="_")
+  renamesample[oldname] = newname
+}
+for (x in 1:nrow(key2)){
+  oldname = paste0(sub("-", ".", sub(".fq.gz", "", matrix(unlist(strsplit( key2$Location[x], "/")), byrow=T, ncol=7)[,7])), "_")
+  #print (key2$cell.type[x])  #check to make sure every sample is endoderm 
+  newname = paste(key2$Name[x], key2$cell.of.origin[x], key2$dox.treatment[x], key2$Genotype[x], sep="_")
+  renamesample[oldname] = newname
+}
+colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
+#colnames(counts_matrix)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+colnames(counts_matrix)
+```
