@@ -199,7 +199,7 @@ pheatmap(de_fpkm_values,
 
 cell death genes
 ```{r}
-# go1 = read.table("~/Downloads/GO-0008219.txt", sep="\t")
+# go1 = read.table("~/Box Sync/laptop_folders/Mattis/endoderm_project/GO-0008219.txt", sep="\t")
 # dim(go1)
 # 
 # go1[, "gene"] = sub ("UniProtKB:", "", go1$V1)
@@ -286,9 +286,9 @@ GOplot_terms=list()
   }
 
 topGOResults <- rbind.fill(tab)
-write.csv(topGOResults, file = "topGOResults.csv")
+write.csv(topGOResults, file = "~/Box Sync/laptop_folders/Mattis/endoderm_project/topGOResults.csv")
 topGOResults2 <- rbind.fill(GOplot_terms)
-write.csv(topGOResults2, file = "topGOResults2.csv")
+write.csv(topGOResults2, file = "~/Box Sync/laptop_folders/Mattis/endoderm_project/topGOResults2.csv")
 
 
 circ <- circle_dat(topGOResults2, data.frame(GOplot_genes))

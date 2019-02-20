@@ -9,7 +9,7 @@ library(Seurat)
 library(dplyr)
 
 # Load the PBMC dataset
-pbmc.data <- Read10X(data.dir = "~/Box Sync/laptop_folders/ihg-client.ucsf.edu/willenbringh/FC_102418_analysis/filtered_gene_bc_matrices/mm10/")
+pbmc.data <- Read10X(data.dir = "~/Box Sync/laptop_folders/Willenbring/Feng Single Cell/willenbringh/FC_102418_analysis/filtered_gene_bc_matrices/mm10/")
 
 # Examine the memory savings between regular and sparse matrices
 dense.size <- object.size(x = as.matrix(x = pbmc.data))
@@ -83,7 +83,7 @@ pbmc <- RunPCA(object = pbmc, pc.genes = pbmc@var.genes, do.print = TRUE, pcs.pr
 ```
 
 ```{r}
-VizPCA(object = pbmc, pcs.use = 1:5)
+VizPCA(object = pbmc, pcs.use = 1:12)
 
 ```
 
@@ -95,14 +95,18 @@ PCAPlot(object = pbmc, dim.1 = 2, dim.2 = 3)
 
 ```{r}
 pbmc <- ProjectPCA(object = pbmc, do.print = FALSE)
-PCHeatmap(object = pbmc, pc.use = 1, cells.use = 2)
+PCHeatmap(object = pbmc, pc.use = 1:4, cells.use = 200)
 #dim(0, do.balanced = TRUE, label.columns = FALSE)
 ```
 ```{r}
 marker_genes = c("Hnf4a", "Alb", "Fah", "Krt8", "Krt18", "G6pc", "Sox9", "Krt7", "Krt19", "Epcam", "Onecut1", "Afp", "Xist")
+```
+
+```{r}
 vlnPlot(pbmc,c("Hnf4a", "Alb", "Fah"))
 
 ```
+
 ```{r}
 pbmc <- FindClusters(object = pbmc, reduction.type = "pca", dims.use = 1:5, resolution = 0.6, print.output = 0, save.SNN = TRUE)
 pbmc <- RunTSNE(object = pbmc, dims.use = 1:10, do.fast = TRUE)
@@ -131,11 +135,72 @@ DotPlot(pbmc, marker_genes)
 
 ```{r}
 #library(MAST)
-pbmc=buildClusterTree(pbmc,do.reorder = TRUE,reorder.numeric = TRUE,pcs.use = 1:11)
-plotClusterTree(pbmc)
+#pbmc=buildClusterTree(pbmc,do.reorder = TRUE,reorder.numeric = TRUE,pcs.use = 1:11)
+#plotClusterTree(pbmc)
+
+  singler = CreateSinglerObject(pbmc.data, annot = NULL, project.name="MCA", min.genes = 0,
+  technology = "10X", species = "Mouse", citation = "",
+  ref.list = list(), normalize.gene.length = F, variable.genes = "de",
+  fine.tune = T, do.signatures = T, clusters = NULL, do.main.types = T, 
+  reduce.file.size = T, numCores = SingleR.numCores)
 ```
 
 ```{r}
 markers <- FindMarkers(object = pbmc, ident.1 = 5)
 write.table(markers, "cluster5.txt", sep="\t")
+markers <- FindMarkers(object = pbmc, ident.1 = 6)
+write.table(markers, "cluster6.txt", sep="\t")
+markers <- FindMarkers(object = pbmc, ident.1 = 7)
+write.table(markers, "cluster7.txt", sep="\t")
+markers <- FindMarkers(object = pbmc, ident.1 = 8)
+write.table(markers, "cluster8.txt", sep="\t")
+markers <- FindMarkers(object = pbmc, ident.1 = 5:8)
+write.table(markers, "cluster5thru8.txt", sep="\t")
 ```
+
+```{r}
+
+temp = (as.matrix(pbmc.data))
+hist(log2(colSums(temp))+1, main="sum of counts for all cells")
+hist(log2(rowSums(temp))+1, main= "sum of counts for all genes")
+
+#which cells express Alb above a certain point
+hist(log2(temp[rownames(temp)== "Alb", ]+1))
+hist(log2(temp[rownames(temp)== "Epcam", ]+1))
+hist(log2(temp[ rownames(temp) == "Epcam", which(temp[rownames(temp)== "Sox9", ]>4)]+1))
+hist(log2(temp[rownames(temp)== "Xist", ]+1))
+hist(log2(temp[ rownames(temp) == "Xist", which(temp[rownames(temp)== "Sox9", ]>4)]+1))
+hist(log2(temp[rownames(temp)== "Hnf4a", ]+1))
+hist(log2(temp[rownames(temp)== "Onecut1", ]+1))
+hist(log2(temp[rownames(temp)== "Sox9", ]+1))
+
+```
+
+```{r}
+library(pheatmap)
+temp3 = temp[which(rownames(temp) %in% marker_genes), ]
+pheatmap(log2(temp3+1), show_colnames=F)
+temp6 = apply(temp, 2, function (x) (x+0.000000000000000000000001)/sum(x))
+temp7 = temp6[which(rownames(temp6) %in% marker_genes), ]
+pheatmap(log2(temp7), show_colnames=F)
+```
+
+genes expressing Albumin don't express epcam much
+genes expressing epcam have some albumin expression
+```{r}
+alb_exp = temp6[, which(temp6 [which(rownames(temp6)=="Alb"),]>0)]
+alb_exp_markers = alb_exp[which(rownames(alb_exp) %in% marker_genes), ]
+pheatmap(log2(alb_exp_markers), show_colnames=F)
+epcam_exp = temp6[, which(temp6 [which(rownames(temp6)=="Epcam"),]>0)]
+epcam_exp_markers = epcam_exp[which(rownames(epcam_exp) %in% marker_genes), ]
+pheatmap(log2(epcam_exp_markers), show_colnames=F)
+```
+
+
+```{r}
+singler = SingleR(method = "single", sc_data, ref_data, types, clusters = NULL,
+  genes = "de", quantile.use = 0.8, p.threshold = 0.05,
+  fine.tune = TRUE, fine.tune.thres = 0.05, sd.thres = 1,
+  do.pvals = T, numCores = SingleR.numCores)
+```
+
