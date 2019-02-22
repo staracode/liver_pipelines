@@ -6,6 +6,22 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+library(topGO)
+require(plyr)
+library(GOplot)
+library("org.Hs.eg.db")
+sessionInfo()
+```
+
+
+Read in file with read counts.
+
+```{r, include=FALSE}
 filename1 = "~/Downloads/readcounts1.txt"
 filename2 = "~/Downloads/readcounts2.txt"
 filename3 = "~/Downloads/readcounts3.txt"
@@ -16,6 +32,7 @@ counts3 = read.table(filename3, header = T, stringsAsFactors = F)
 
 counts = cbind(counts1, counts2, counts3)
 dim(counts)
+rownames(counts) = counts1$Geneid
 
 ```
 
@@ -36,23 +53,250 @@ renamesample=list()
 for (x in 1:nrow(key1  )){
   oldname = paste0(sub(".fastq", "", key1$FILE.NAME[x], "_"), "_")
   #print (key1$CELL.TYPE[x])  #check to make sure every sample is endoderm 
-  newname = paste(key1$FULL.SAMPLE.ID[x], key1$CELL.TYPE[x], key1$DISEASE.STATUS[x], sep="_")
+  newname = paste(key1$FULL.SAMPLE.ID[x], key1$CELL.TYPE[x], key1$DISEASE.STATUS[x], "CD", sep="_")
   renamesample[oldname] = newname
 }
 for (x in 1:nrow(key2)){
   oldname = paste0(sub("-", ".", sub(".fq.gz", "", matrix(unlist(strsplit( key2$Location[x], "/")), byrow=T, ncol=7)[,7])), "_")
   #print (key2$cell.type[x])  #check to make sure every sample is endoderm 
-  newname = paste(key2$Name[x], key2$cell.of.origin[x], key2$dox.treatment[x], key2$Genotype[x], sep="_")
+  newname = paste(key2$Name[x], key2$cell.of.origin[x], key2$Genotype[x], "AM", sep="_")
   renamesample[oldname] = newname
 }
+
 colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
-#colnames(counts_matrix)
+colnames(counts_matrix) = sub ("NASH pt", "NASH", colnames(counts_matrix))
+colnames(counts_matrix) = sub ("wild-type", "HEALTHY", colnames(counts_matrix))
+
+if (colnames(counts_matrix)[21] == colnames(counts_matrix)[22]) {
+  colnames(counts_matrix)[21] = "CW10027_iPSC-PBMC_HEALTHY_CDa"
+  colnames(counts_matrix)[22] = "CW10027_iPSC-PBMC_HEALTHY_CDb"
+}
+colnames(counts_matrix)[grep ("WBC", colnames(counts_matrix))] = c("CW10054_iPSC-PBMC_HEALTHY_AM", "CW10007_iPSC-PBMC_NASH_AM" )
+
 ```
 
-## Including Plots
+Filter out genes that are too highly expressed or lowly expressed. 
+```{r}
+keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
+counts_matrix_filtered = counts_matrix[keep,]
+```
+Take the RPKM.
+```{r}
+y <- DGEList(counts=counts_matrix_filtered)
+fpkm_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = FALSE)
+```
 
-You can also embed plots, for example:
+Dendrogram showing relationships using fpkm. Mattis' PBMCs do not cluster with Caroline's even though two of them come from the same patient.  CW10027 samples do not cluster together.   CW10020, CW10022 and CW10054 were listed as outliers prior to analysis but they don't seem to be behaving oddly.  
+```{r}
+#par(cex=1,font=3)
+hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
+#par(mar=c(10, 4, 4, 10), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
 
-```{r pressure, echo=FALSE}
-colnames(counts_matrix)
+```
+
+label each sample by three conditions
+1) cell origin 2) disease status 3) patient source
+```{r}
+Condition1 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,2], levels = c("iPSC-PBMC", "fibroblast"))
+Condition2 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,3], levels = c("HEALTHY","NASH", "NAFL"))
+Condition3 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,1])
+```
+
+PCA log transformation
+```{r}
+cold <- data.frame("Condition1"=Condition1) 
+rownames(cold) = colnames(counts_matrix_filtered)
+cold
+
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered, colData=cold, design=~Condition1 );
+colnames(ddsMat) <- colnames(counts_matrix_filtered)
+rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
+
+```
+
+plot PCA
+```{r}
+par(mfrow=c(2,1))
+pca <- prcomp(t(assay(rld)))
+
+d <- data.frame(pca$x, Condition1, Condition2,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition2"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+
+d <- data.frame(pca$x, group=Condition1, Condition3,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition3"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+```
+
+Some of the related samples are messing up clustering. 
+
+Heatmap to see how cells cluster by cell type or experimental condition. Does it agree with dendrogram which uses different clustering methods. 
+```{r}
+HEATMAP_HEIGHT <- 45 # inchescol
+HEATMAP_WIDTH  <- 15
+annotation <- data.frame(
+  Condition1= Condition1, Condition2=Condition2)
+rownames(annotation) <- colnames(fpkm_matrix)
+pheatmap(fpkm_matrix,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         , annotation = annotation
+         , fontsize_row=3.5)
+```
+
+
+Fit the model and estimate dispersion value. Baseline is PBMC.  
+```{r}
+design_matrix <- model.matrix( ~ Condition1  )
+colnames(design_matrix)
+design_matrix
+y_for_DE <- DGEList(counts=counts_matrix_filtered)
+y_for_DE <- calcNormFactors(y_for_DE)
+y_for_DE = estimateDisp(y_for_DE, design=design_matrix) 
+plotBCV(y_for_DE)
+fit <- glmFit(y_for_DE, design=design_matrix, dispersion=y_for_DE$trended.dispersion)
+```
+Pretty high estimated dispersion values. 
+
+
+Fibroblast vs PBMC 
+```{r}
+lrt <- glmLRT(fit, coef = "Condition1fibroblast")
+topTags(lrt)
+smoothScatter(x=lrt$table$logFC, y=-log10(lrt$table$PValue))
+```
+More genes appear to be down-regulated. 
+
+
+
+```{r}
+lrt_table = data.frame(lrt$table, p.adjust(lrt$table$PValue, method = "BH"))
+colnames(lrt_table) = c(colnames(lrt$table), "adjPVal_BH")
+hist(lrt_table$PValue)
+```
+
+Format output into excel sheet. 
+```{r}
+genes = rownames(counts_matrix_filtered)
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+head(listAttributes(ensembl), 30)
+hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+
+index = match (genes, hgnc_swissprot$ensembl_gene_id)
+results = data.frame(hgnc_swissprot[index,], counts_matrix_filtered, fpkm_matrix, lrt_table)
+colnames(results) = c(
+                    colnames(hgnc_swissprot[index,])
+                  , unlist(lapply (colnames(counts_matrix_filtered), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_matrix), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_fibroblast_vs_pbmc_baseline", sep="_")))
+                  )
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Box Sync/laptop_folders/duwaerts_mattis_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+
+```
+
+
+Heatmap of DE genes
+```{r}
+mean_values = 2^((fit$coefficients) %*% t(design_matrix) )
+colnames(mean_values) = colnames (counts_matrix_filtered)
+
+de_mean_values = mean_values[rownames(mean_values) %in%  results[which(results[,"adjPVal_BH__fibroblast_vs_pbmc_baseline"] <=0.05),"ensembl_gene_id"], ]
+pheatmap(de_mean_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="euclidean"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+
+de_fpkm_values = results[which(results[,"adjPVal_BH__fibroblast_vs_pbmc_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
+pheatmap(de_fpkm_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="euclidean"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+```
+
+```{r}
+#setup gene DE for GOplot package later
+GOplot_genes = results [grep ("__fibroblast_vs_pbmc_baseline",colnames(results))]
+colnames(GOplot_genes) = c("logFC", "logCPM", "LR", "Pvalue", "BH")
+GOplot_genes["ID"] = results[,"ensembl_gene_id"]
+colnames(GOplot_genes)
+length(unique(GOplot_genes$ID))
+GOplot_genes = GOplot_genes[, c("ID", "logFC")]
+
+geneIDs = results[,"ensembl_gene_id"]
+inUniverse = geneIDs %in%  results[,"ensembl_gene_id"]
+inSelection = geneIDs %in% results[which(results[,"adjPVal_BH__fibroblast_vs_pbmc_baseline"] <=0.05),"ensembl_gene_id"]
+alg <- factor( as.integer( inSelection[inUniverse] ) )
+names(alg) <- geneIDs[inUniverse]
+head(alg)
+
+onts = c( "MF", "BP", "CC" )
+tab = as.list(onts)
+names(tab) = onts
+GOplot_terms=list()
+  for(i in 1:3) {
+    ## prepare data
+    tgd <- new( "topGOdata", ontology=onts[i], allGenes = alg, nodeSize=5,
+                 annot=annFUN.org, mapping="org.Hs.eg.db", ID = "ensembl" )
+
+    ## run tests
+    resultTopGO.elim <- runTest(tgd, algorithm = "elim", statistic = "Fisher" )
+    resultTopGO.classic <- runTest(tgd, algorithm = "classic", statistic = "Fisher" )
+
+    ## look at results
+    tab[[i]] <- GenTable( tgd, Fisher.elim = resultTopGO.elim, 
+        Fisher.classic = resultTopGO.classic,
+        orderBy = "Fisher.classic" , topNodes = 200)
+
+    #convert list to dataframe  
+    allGO = genesInTerm(tgd, tab[[i]][,"GO.ID"])
+    #allGO_genes = ldply(allGO,data.frame)[,2]
+    #length(unique(allGO_genes))
+    #GOplot_genes = GOplot_genes[GOplot_genes$ID %in% allGO_genes,]
+    test = ldply (lapply(allGO, function(x) paste(x, collapse=",")), data.frame)
+    #match(test$.id, tab[[i]][, "GO.ID"]) #check to make sure they rows match 
+    GOplot_terms[[i]] = data.frame(onts[i], tab[[i]], test, stringsAsFactors = FALSE)
+    GOplot_terms[[i]][, "Fisher.elim"] = as.numeric(as.character(GOplot_terms[[i]][, "Fisher.elim"]))
+    GOplot_terms[[i]][, "Fisher.elim.BH"] = p.adjust(GOplot_terms[[i]][, "Fisher.elim"], method="BH")
+    GOplot_terms[[i]] = GOplot_terms[[i]][, c("onts.i.", "GO.ID", "Term", "Fisher.elim.BH", "X..i..")]
+    colnames(GOplot_terms[[i]]) = c("Category", "ID", "Term",  "adj_pval", "Genes")
+  }
+
+topGOResults <- rbind.fill(tab)
+#write.csv(topGOResults, file = "~/Box Sync/laptop_folders//topGOResults.csv")
+topGOResults2 <- rbind.fill(GOplot_terms)
+#write.csv(topGOResults2, file = "~/Box Sync/laptop_folders//topGOResults2.csv")
+                  
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Box Sync/laptop_folders/duwaerts_mattis_goresults_", curr_date, ".xls"),  col.names=NA, sep="\t")
+
+circ <- circle_dat(topGOResults2, data.frame(GOplot_genes))
+GOBar(circ)
+GOBar(circ, display='multiple')
+GOBubble(circ, labels = 1.5)
+GOCircle(circ)
+
 ```
