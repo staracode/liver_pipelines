@@ -1,11 +1,11 @@
 ---
-title: "Duwaertis and Mattis RNA-seq human iPSC lines"
+title: "Duwaerts and Mattis RNA-seq human iPSC lines"
 author: "Tara Friedrich"
 date: "2/19/2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r }
 library(pheatmap)
 library(edgeR)
 library(DESeq2)
@@ -19,12 +19,11 @@ sessionInfo()
 ```
 
 
-Read in file with read counts.
-
-```{r, include=FALSE}
-filename1 = "~/Downloads/readcounts1.txt"
-filename2 = "~/Downloads/readcounts2.txt"
-filename3 = "~/Downloads/readcounts3.txt"
+Read in files with read counts.  
+```{r}
+filename1 = "~/Box Sync/laptop_folders/Duwaerts_Mattis/readcounts1.txt"
+filename2 = "~/Box Sync/laptop_folders/Duwaerts_Mattis/readcounts2.txt"
+filename3 = "~/Box Sync/laptop_folders/Duwaerts_Mattis/readcounts3.txt"
 
 counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
 counts2 = read.table(filename2, header = T, stringsAsFactors = F) 
@@ -36,17 +35,15 @@ rownames(counts) = counts1$Geneid
 
 ```
 
-
-
 Remove metadata (Gene, coordinates, etc)
 ```{r}
 counts_matrix = data.matrix(counts[,grep ("bam", colnames(counts))])
 #colnames(counts_matrix) = sub("_1_algn_Aligned", "", matrix(unlist(strsplit(colnames(counts_matrix), "\\.")), byrow =T, ncol=6)[,3])
 colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.")), byrow =T, ncol=3)[,2]
 #rename to reflect useful labels 
-key1 = read.table("~/Downloads/key.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key1 = read.table("~/Box Sync/laptop_folders/Duwaerts_Mattis/Mattis_Duwaerts_metadata2.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key1)
-key2 = read.table("~/Downloads/Mattis_Duwaerts_metadata.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key2 = read.table("~/Box Sync/laptop_folders/Duwaerts_Mattis/Mattis_Duwaerts_metadata.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key2)
 
 renamesample=list()
@@ -88,9 +85,9 @@ fpkm_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = FALSE)
 
 Dendrogram showing relationships using fpkm. Mattis' PBMCs do not cluster with Caroline's even though two of them come from the same patient.  CW10027 samples do not cluster together.   CW10020, CW10022 and CW10054 were listed as outliers prior to analysis but they don't seem to be behaving oddly.  
 ```{r}
-#par(cex=1,font=3)
+par(cex=.5,font=2)
 hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
-#par(mar=c(10, 4, 4, 10), pty='s')
+par(mar=c(.2,.2,.2,.2), pty='s')
 plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
 
 ```
@@ -103,7 +100,7 @@ Condition2 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_
 Condition3 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,1])
 ```
 
-PCA log transformation
+log transformation for PCA plot 
 ```{r}
 cold <- data.frame("Condition1"=Condition1) 
 rownames(cold) = colnames(counts_matrix_filtered)
@@ -115,19 +112,25 @@ rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
 
 ```
 
-plot PCA
+run PCA to explore structure in the data in lower dimensions.  
 ```{r}
 par(mfrow=c(2,1))
 pca <- prcomp(t(assay(rld)))
+```
 
+Plot PC1 against PC2. 
+```{r}
 d <- data.frame(pca$x, Condition1, Condition2,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
 ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition2"))
 ppp <- ppp + geom_point(size=6)
 plot(ppp)
+```
 
+Plot PC1 against PC3. 
+```{r}
 d <- data.frame(pca$x, group=Condition1, Condition3,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
 ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition3"))
-ppp <- ppp + geom_point(size=6)
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=Condition3), nudge_y=6)
 plot(ppp)
 ```
 
@@ -174,14 +177,15 @@ lrt <- glmLRT(fit, coef = "Condition1fibroblast")
 topTags(lrt)
 smoothScatter(x=lrt$table$logFC, y=-log10(lrt$table$PValue))
 ```
-More genes appear to be down-regulated. 
 
 
+Skew in plot above showing significantly DE genes are probably more down-regulated that up-regulated.  
 
+Histogram should skew left.  Things look super significant here but that is probably due to differences in batch rather than differences betwen fibroblast cell origin and PBMC cell origin.  
 ```{r}
 lrt_table = data.frame(lrt$table, p.adjust(lrt$table$PValue, method = "BH"))
 colnames(lrt_table) = c(colnames(lrt$table), "adjPVal_BH")
-hist(lrt_table$PValue)
+hist(lrt_table$PValue, main="distribution of p-values") 
 ```
 
 Format output into excel sheet. 
@@ -200,12 +204,12 @@ colnames(results) = c(
                   , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_fibroblast_vs_pbmc_baseline", sep="_")))
                   )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Box Sync/laptop_folders/duwaerts_mattis_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+write.table(results, paste0("~/Box Sync/laptop_folders/Duwaerts_Mattis/duwaerts_mattis_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
 
 ```
 
 
-Heatmap of DE genes
+Differentially expressed genes shown using the expected (aka mean) values from the fitted model.  
 ```{r}
 mean_values = 2^((fit$coefficients) %*% t(design_matrix) )
 colnames(mean_values) = colnames (counts_matrix_filtered)
@@ -213,22 +217,24 @@ colnames(mean_values) = colnames (counts_matrix_filtered)
 de_mean_values = mean_values[rownames(mean_values) %in%  results[which(results[,"adjPVal_BH__fibroblast_vs_pbmc_baseline"] <=0.05),"ensembl_gene_id"], ]
 pheatmap(de_mean_values,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
-         , scale="row"  # actually scale each row
+         #, scale="row"  # actually scale each row
          #, clustering_distance_rows="correlation" # or: euclidean
-         , clustering_distance_cols="euclidean"
+         , clustering_distance_cols="correlation"
          , clustering_method="complete"
          , display_numbers=FALSE
         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
          , show_rownames=FALSE, show_colnames = TRUE
          #, annotation = annotation
          , fontsize_row=3.5)
-
+```
+Differentially expressed genes shown using FPKM values.  
+```{r fpkm values of DE genes}
 de_fpkm_values = results[which(results[,"adjPVal_BH__fibroblast_vs_pbmc_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
 pheatmap(de_fpkm_values,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
          #, clustering_distance_rows="correlation" # or: euclidean
-         , clustering_distance_cols="euclidean"
+         , clustering_distance_cols="correlation"
          , clustering_method="complete"
          , display_numbers=FALSE
         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
@@ -237,6 +243,7 @@ pheatmap(de_fpkm_values,
          , fontsize_row=3.5)
 ```
 
+Gene Ontology enrichment 
 ```{r}
 #setup gene DE for GOplot package later
 GOplot_genes = results [grep ("__fibroblast_vs_pbmc_baseline",colnames(results))]
@@ -273,9 +280,6 @@ GOplot_terms=list()
 
     #convert list to dataframe  
     allGO = genesInTerm(tgd, tab[[i]][,"GO.ID"])
-    #allGO_genes = ldply(allGO,data.frame)[,2]
-    #length(unique(allGO_genes))
-    #GOplot_genes = GOplot_genes[GOplot_genes$ID %in% allGO_genes,]
     test = ldply (lapply(allGO, function(x) paste(x, collapse=",")), data.frame)
     #match(test$.id, tab[[i]][, "GO.ID"]) #check to make sure they rows match 
     GOplot_terms[[i]] = data.frame(onts[i], tab[[i]], test, stringsAsFactors = FALSE)
@@ -286,17 +290,20 @@ GOplot_terms=list()
   }
 
 topGOResults <- rbind.fill(tab)
-#write.csv(topGOResults, file = "~/Box Sync/laptop_folders//topGOResults.csv")
 topGOResults2 <- rbind.fill(GOplot_terms)
-#write.csv(topGOResults2, file = "~/Box Sync/laptop_folders//topGOResults2.csv")
-                  
-curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Box Sync/laptop_folders/duwaerts_mattis_goresults_", curr_date, ".xls"),  col.names=NA, sep="\t")
+```
 
+Plot Gene Ontology enrichment results
+```{r}
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(topGOResults2, paste0("~/Box Sync/laptop_folders/Duwaerts_Mattis/duwaerts_mattis_goresults_", curr_date, ".xls"),  col.names=NA, sep="\t")
+
+# create object to plot 
 circ <- circle_dat(topGOResults2, data.frame(GOplot_genes))
-GOBar(circ)
+
+par(cex=.5,font=2)
+par(mar=c(.4,.2,.2,.4), pty='s')
 GOBar(circ, display='multiple')
-GOBubble(circ, labels = 1.5)
-GOCircle(circ)
+GOBubble(circ, labels = 2)
 
 ```
