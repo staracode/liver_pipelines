@@ -1,0 +1,56 @@
+---
+title: "Untitled"
+author: "Tara Friedrich"
+date: "3/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+pnbinom(q, size, prob, mu, lower.tail = TRUE, log.p = FALSE)
+library(pwr)
+pwr.t.test( d =0.57 , sig.level =.01 , power =.8 , type = c("two.sample"))
+y$genes$Symbol[12033]
+
+```
+
+```{r}
+hist(y$trended.dispersion)
+
+set.seed(2016)
+mu <- apply(y$counts[, grep ("Wt",colnames(y$counts))], 1, mean)
+size2 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
+                        disp = y$trended.dispersion, fc = 2, fdr = 0.05,
+                        power = 0.8, maxN = 15, replace = FALSE)
+size2$ssize
+     
+mu <- apply(y$counts[, grep ("Bcat",colnames(y$counts))], 1, mean)
+size2 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
+                         disp = y$trended.dispersion, fc = 2, fdr = 0.05,
+                         power = 0.8, maxN = 15, replace = FALSE)
+size2$ssize
+
+mu <- apply(y$counts[, grep ("sgAxin",colnames(y$counts))], 1, mean)
+size2 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
+                        disp = y$trended.dispersion, fc = 2, fdr = 0.05,
+                        power = 0.8, maxN = 15, replace = FALSE)
+size2$ssize
+     
+check.power(m = 7 , mu = mu, disp = y$trended.dispersion, fc = 2, sims = 10, replace = FALSE)
+
+```
+Gaussian distribution of fold changes
+```{r}
+hist(res$table$logFC)
+set.seed(2016)
+fc <- function(x){exp(rnorm(x, log(2), 0.5*log(2)))}
+size3 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
+disp = y$trended.dispersion, fc = fc, fdr = 0.05,
+power = 0.8, maxN = 20, replace = FALSE)
+
+size3$ssize
+
+check.power(m = 7 , mu = mu, disp = y$trended.dispersion, fc = fc, sims = 10, replace = FALSE)
+
+check.power(m = 11 , mu = mu, disp = y$trended.dispersion, fc = fc, sims = 10, replace = FALSE)
+
+```
