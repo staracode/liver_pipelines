@@ -1,16 +1,174 @@
 ---
-title: "Untitled"
+title: "Power Analysis Xin Chen"
 author: "Tara Friedrich"
 date: "3/1/2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-pnbinom(q, size, prob, mu, lower.tail = TRUE, log.p = FALSE)
-library(pwr)
-pwr.t.test( d =0.57 , sig.level =.01 , power =.8 , type = c("two.sample"))
-y$genes$Symbol[12033]
+```{r}
+getwd()
+```
 
+```{r}
+source("https://bioconductor.org/biocLite.R")
+```
+
+```{r}
+library("edgeR")
+library("Rsubread")
+library(RnaSeqGeneEdgeRQL)
+```
+
+```{r}
+targets <- read.delim(file ="~/Downloads/targets.txt", stringsAsFactors=FALSE)
+targets
+```
+
+```{r}
+## ----group---------------------------------------------------------------
+group <- paste(targets$Status, targets$X, sep=".")
+group <- factor(group)
+table(group)
+```
+
+```{r}
+## ----readcounts----------------------------------------------------------
+GenewiseCounts <- read.delim("~/Downloads/readcount2a.txt", row.names="geneID")
+colnames(GenewiseCounts) <- substring(colnames(GenewiseCounts),1,7)
+dim(GenewiseCounts)
+```
+
+```{r}
+head(GenewiseCounts)
+```
+
+```{r}
+## ----DGEList, message=FALSE----------------------------------------------
+y <- DGEList(GenewiseCounts, group=group, genes=GenewiseCounts[,1,drop=FALSE])
+options(digits=3)
+y$samples
+```
+
+```{r}
+## ----Adding gene annotation----------------------------------------------
+library(org.Mm.eg.db)
+y$genes$Symbol <- mapIds(org.Mm.eg.db, rownames(y), keytype="ENTREZID", column="SYMBOL")
+head(y$genes)
+```
+
+```{r}
+## ----Remove entries with no gene symbols---------------------------------
+y <- y[!is.na(y$genes$Symbol), ]
+dim(y)
+```
+
+```{r}
+## ----Remove entries with low CPM counts---------------------------------
+keep <- rowSums(cpm(y) > 0.5) >= 2
+table(keep)
+```
+
+```{r}
+## ----filter--------------------------------------------------------------
+y <- y[keep, , keep.lib.sizes=FALSE]
+```
+
+```{r}
+## ----design--------------------------------------------------------------
+design <- model.matrix(~0+group)
+colnames(design) <- levels(group)
+design
+```
+
+```{r}
+## ----remove low counts-------------------------------------
+keep <- filterByExpr(y, design)
+table(keep)
+```
+
+```{r}
+## ----filter--------------------------------------------------------------
+y <- y[keep, , keep.lib.sizes=FALSE]
+```
+
+```{r}
+## ----average-log-CPM--------------------------------------------------------------
+AveLogCPM <- aveLogCPM(y)
+hist(AveLogCPM)
+```
+
+```{r}
+## ----normalization for composition bias-------------------------------------------
+y <- calcNormFactors(y)
+y$samples
+```
+
+```{r}
+## ----mdsplot, fig.cap="The MDS plot of the data set."----
+pch <- c(0,1,2,15,16,17)
+colors <- rep(c("darkgreen", "red", "blue"), 2)
+plotMDS(y, col=colors[group], pch=pch[group])
+legend("topleft", legend=levels(group), pch=pch, col=colors, ncol=2)
+```
+
+```{r}
+## ----Dispersion estimation--------------------------------------------
+y <- estimateDisp(y, design, robust=TRUE)
+```
+
+```{r}
+## ----plotBCV, width="3.8in", fig.cap="Scatterplot of the biological coefficient of variation (BCV) against the average abundance of each gene. The plot shows the square-root estimates of the common, trended and tagwise NB dispersions."----
+plotBCV(y)
+```
+
+```{r}
+## ----QL dispersion estimation--------------------------------------------------
+fit <- glmQLFit(y, design, robust=TRUE)
+head(fit$coefficients)
+```
+
+```{r}
+## ----QLDisp, out.width="3.8in", fig.cap="A plot of the quarter-root QL dispersion against the average abundance of each gene. Estimates are shown for the raw (before EB moderation), trended and squeezed (after EB moderation) dispersions. Note that the QL dispersions and trend shown here are relative to the NB dispersion trend shown in Figure~\ref{fig:plotBCV}."----
+plotQLDisp(fit)
+```
+
+```{r}
+## ----df.prior------------------------------------------------------------
+summary(fit$df.prior)
+```
+
+```{r}
+## ----Testing for differential expression Bcat vs Wt--------------------------------------------------------------
+B.BcatvsWt <- makeContrasts(Bcat. - Wt., levels=design)
+res <- glmQLFTest(fit, contrast=B.BcatvsWt)
+topTags(res)
+res2 = cbind (y$genes$Symbol, res$table, p.adjust(res$table$PValue, method="BH"))
+```
+
+```{r}
+## ----control for false discovery rate of 5%---------------------------------------------------------
+is.de <- decideTestsDGE(res)
+summary(is.de)
+```
+
+
+```{r setup, include=FALSE}
+validated = c("c-Myc", "Ccnd1", "Lgr5", "Gs", "Axin2", "Tbx3", "Lect2", "Oat", "Naked", "Sp5")
+for ( gene in validated){
+  symbol =  (y$gene$Symbol [grep (gene, y$genes$Symbol)])
+  if ((length(symbol) < 2 ) && (length(symbol) > 0)){
+    print (symbol)
+    print (res2[res2$`y$genes$Symbol`== gene, ])
+  }
+}
+
+#Bcat vs WT 
+is.de <- decideTestsDGE(res)
+summary(is.de)
+percent_changed = (1750 + 2186)/ (9215 + 1750 + 2186)
+percent_not_changed = 1- percent_changed
+
+#effect size 
 ```
 
 ```{r}
@@ -42,12 +200,17 @@ Gaussian distribution of fold changes
 ```{r}
 hist(res$table$logFC)
 set.seed(2016)
-fc <- fuction(x){exp(rnorm(x, log(2), 0.5*log(2)))}
+fc <- function(x){exp(rnorm(x, log(2), 0.5*log(2)))}
 size3 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
 disp = y$trended.dispersion, fc = fc, fdr = 0.05,
 power = 0.8, maxN = 20, replace = FALSE)
 
 size3$ssize
+
+
+size4 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.7, m = 200, mu = mu,
+disp = y$trended.dispersion, fc = fc, fdr = 0.05,
+power = 0.8, maxN = 20, replace = FALSE)
 
 check.power(m = 7 , mu = mu, disp = y$trended.dispersion, fc = fc, sims = 10, replace = FALSE)
 
