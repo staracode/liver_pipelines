@@ -20,7 +20,7 @@ library(RnaSeqGeneEdgeRQL)
 ```
 
 ```{r}
-targets <- read.delim(file ="~/Downloads/targets.txt", stringsAsFactors=FALSE)
+targets <- read.delim(file ="~/Box Sync/2019_02_04_Chen_power_analysis/targets.txt", stringsAsFactors=FALSE)
 targets
 ```
 
@@ -33,7 +33,7 @@ table(group)
 
 ```{r}
 ## ----readcounts----------------------------------------------------------
-GenewiseCounts <- read.delim("~/Downloads/readcount2a.txt", row.names="geneID")
+GenewiseCounts <- read.delim("~/Box Sync/2019_02_04_Chen_power_analysis/readcount2a.txt", row.names="geneID")
 colnames(GenewiseCounts) <- substring(colnames(GenewiseCounts),1,7)
 dim(GenewiseCounts)
 ```
@@ -151,7 +151,7 @@ is.de <- decideTestsDGE(res)
 summary(is.de)
 ```
 
-
+Check the logFC of differentially expressed genes that were validated using qPCR. 
 ```{r setup, include=FALSE}
 validated = c("c-Myc", "Ccnd1", "Lgr5", "Gs", "Axin2", "Tbx3", "Lect2", "Oat", "Naked", "Sp5")
 for ( gene in validated){
@@ -161,59 +161,48 @@ for ( gene in validated){
     print (res2[res2$`y$genes$Symbol`== gene, ])
   }
 }
+#Why is Oat not differentially expressed using the code given? !!!!!! 
+# Ask Xin Chen
 
-#Bcat vs WT 
-is.de <- decideTestsDGE(res)
-summary(is.de)
+```
+Everything above was copied from "BW analysis Bcat vs WT.Rmd" 
+Everything below is my own work. 
+Setup for Power Calculations
+```{r}
+#number of non-DE genes based on decideTestsDGE 
 percent_changed = (1750 + 2186)/ (9215 + 1750 + 2186)
 percent_not_changed = 1- percent_changed
+percent_not_changed #number of non-DE genes
 
-#effect size 
-```
+#distribution of logFC values of genes that are DE
+par(mfrow=c(1,2))
+hist(abs(res2[res2$`p.adjust(res$table$PValue, method = "BH")`<0.05,"logFC"]), breaks = 100, xlim=c(0,2))  #not normally distributed but it will have to do
+hist(rnorm(1000, log(2), 0.5*log(2)))  #normal distributed with mean log(2) and variance log(2)/2
 
-```{r}
-hist(y$trended.dispersion)
-
-set.seed(2016)
-mu <- apply(y$counts[, grep ("Wt",colnames(y$counts))], 1, mean)
-size2 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
-                        disp = y$trended.dispersion, fc = 2, fdr = 0.05,
-                        power = 0.8, maxN = 15, replace = FALSE)
-size2$ssize
-     
-mu <- apply(y$counts[, grep ("Bcat",colnames(y$counts))], 1, mean)
-size2 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
-                         disp = y$trended.dispersion, fc = 2, fdr = 0.05,
-                         power = 0.8, maxN = 15, replace = FALSE)
-size2$ssize
-
-mu <- apply(y$counts[, grep ("sgAxin",colnames(y$counts))], 1, mean)
-size2 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
-                        disp = y$trended.dispersion, fc = 2, fdr = 0.05,
-                        power = 0.8, maxN = 15, replace = FALSE)
-size2$ssize
-     
-check.power(m = 7 , mu = mu, disp = y$trended.dispersion, fc = 2, sims = 10, replace = FALSE)
-
-```
-Gaussian distribution of fold changes
-```{r}
-hist(res$table$logFC)
-set.seed(2016)
+#Gaussian distribution of fold changes used in power calculations below
 fc <- function(x){exp(rnorm(x, log(2), 0.5*log(2)))}
-size3 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.8, m = 200, mu = mu,
-disp = y$trended.dispersion, fc = fc, fdr = 0.05,
-power = 0.8, maxN = 20, replace = FALSE)
 
-size3$ssize
+par(c(1,1))
+# plot dispersion of each gene
+hist(y$trended.dispersion, breaks=100)
 
+# calculate the mean expression value of each gene
+mu <- apply(y$counts[, grep ("Wt",colnames(y$counts))], 1, mean)
+hist(log(mu+1), breaks=100)
+```
 
-size4 <- ssizeRNA_vary(nGenes = 10000, pi0 = 0.7, m = 200, mu = mu,
-disp = y$trended.dispersion, fc = fc, fdr = 0.05,
-power = 0.8, maxN = 20, replace = FALSE)
+Power Calculations using package ssizeRNA  
+```{r}
+library(ssizeRNA)
 
-check.power(m = 7 , mu = mu, disp = y$trended.dispersion, fc = fc, sims = 10, replace = FALSE)
+set.seed(2016)
+ssize_results <- ssizeRNA_vary(nGenes = 10000, pi0 = percent_not_changed, m = 200, mu = mu, disp = y$trended.dispersion, fc = fc, fdr = 0.05, power = 0.8, maxN = 20, replace = FALSE)
+ssize_results$ssize
 
-check.power(m = 11 , mu = mu, disp = y$trended.dispersion, fc = fc, sims = 10, replace = FALSE)
+#check power after controlling fdr using BH and storey's q
+check.power(m = 9 , mu = mu, disp = y$trended.dispersion, fc = fc, sims = 10, replace = FALSE)
+```
 
+```{r}
+sessionInfo()
 ```
