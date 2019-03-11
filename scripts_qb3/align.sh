@@ -7,8 +7,7 @@
 #$ -r y                            #-- tell the system that if a job crashes, it should be restarted
 ##$ -j y                            #-- tell the system that the STDERR and STDOUT should be joined
 #$ -l mem_free=40G                  #-- submits on nodes with enough free memory (required)
-#$ -l arch=linux-x64               #-- SGE resources (CPU type)
-#$ -l netapp=10G,scratch=10G         #-- SGE resources (home and scratch disks)
+#$ -l scratch=10G         #-- SGE resources (home and scratch disks)
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
 
 # Directory where fastq file for project reside
@@ -68,17 +67,17 @@ fi
 
 # Output directory
 if [ ! -d "$BIN_DIR" ]; then
-	mkdir /netapp/home/tfriedrich/$DIR_NAME/algn/
+	mkdir /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/
 fi 
 
 
 FASTQ_TRIM_DIR=~/$DIR_NAME/filtered/
 
-echo /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix
+echo /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix
 echo $prefix
 
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
 else
-	/netapp/home/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /netapp/home/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /netapp/home/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
+	/wynton/home/willenbring/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
 fi 

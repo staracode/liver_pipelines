@@ -7,8 +7,7 @@
 #$ -r y                            #-- tell the system that if a job crashes, it should be restarted
 ##$ -j y                            #-- tell the system that the STDERR and STDOUT should be joined
 #$ -l mem_free=4G                  #-- submits on nodes with enough free memory (required)
-#$ -l arch=linux-x64               #-- SGE resources (CPU type)
-#$ -l netapp=10G,scratch=10G         #-- SGE resources (home and scratch disks)
+#$ -l scratch=10G         #-- SGE resources (home and scratch disks)
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
 
 # Directory where fastq file for project reside
@@ -79,22 +78,22 @@ echo $FASTQ_DIR'/'$fastq2
 
 # Quality of data before trimming
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2
+	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2
 else
-	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq
+	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_DIR'/'$fastq
 fi 
 
 # Trim fastq filem
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	/netapp/home/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2 -o $FASTQ_TRIM_DIR'/'$fastq_trim -o $FASTQ_TRIM_DIR'/'$fastq_trim2
+	/wynton/home/willenbring/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq $FASTQ_DIR'/'$fastq2 -o $FASTQ_TRIM_DIR'/'$fastq_trim -o $FASTQ_TRIM_DIR'/'$fastq_trim2
 else
-	/netapp/home/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq  -o $FASTQ_TRIM_DIR'/'$fastq_trim
+	/wynton/home/willenbring/tfriedrich/LiverCenter/bin/bin/fastq-mcf ~/LiverCenter/pipeline_files/illumina.adapter.file.txt  $FASTQ_DIR'/'$fastq  -o $FASTQ_TRIM_DIR'/'$fastq_trim
 fi 
 
 # Quality of the data after trimming
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
 else
-	/netapp/home/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim
+	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/FastQC/fastqc $FASTQ_TRIM_DIR'/'$fastq_trim
 fi 
 

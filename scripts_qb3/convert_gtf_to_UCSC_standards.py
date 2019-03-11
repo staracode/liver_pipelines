@@ -7,7 +7,10 @@ all = map(str, range (0,50))
 all.extend( ['MT', 'M', 'Y', 'X'] )
 print (all)
 
-gtf_file = "genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90.gtf"
+#human build 
+#gtf_file = "genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90.gtf"
+#mouse build
+gtf_file = "LiverCenter/genomes/mm10/ensembl/annotation/Mus_musculus.GRCm38.95.gtf"
 track_chromosomes = {}
 gtf_filehandle = open(gtf_file, 'r')
 gtf_out = open(gtf_file.replace(".gtf", "_ucsc_formatted.gtf"), 'w')

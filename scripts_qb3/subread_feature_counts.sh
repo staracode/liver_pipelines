@@ -7,8 +7,7 @@
 #$ -r y                            #-- tell the system that if a job crashes, it should be restarted
 ##$ -j y                            #-- tell the system that the STDERR and STDOUT should be joined
 #$ -l mem_free=32G                  #-- submits on nodes with enough free memory (required)
-#$ -l arch=linux-x64               #-- SGE resources (CPU type)
-#$ -l netapp=10G,scratch=10G         #-- SGE resources (home and scratch disks)
+#$ -l scratch=10G         #-- SGE resources (home and scratch disks)
 #$ -l h_rt=24:00:00                #-- runtime limit (see above; this requests 24 hours)
 
 
@@ -16,7 +15,7 @@
 DIR_NAME=$1
 
 if [ ! -d "$BIN_DIR" ]; then
-	mkdir /netapp/home/tfriedrich/$DIR_NAME/counts
+	mkdir /wynton/home/willenbring/tfriedrich/$DIR_NAME/counts
 fi 
 
 input_files=`ls $DIR_NAME/algn/*bam`
