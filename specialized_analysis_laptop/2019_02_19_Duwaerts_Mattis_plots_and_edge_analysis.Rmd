@@ -21,9 +21,9 @@ sessionInfo()
 
 Read in files with read counts.  
 ```{r}
-filename1 = "~/Box Sync/laptop_folders/Duwaerts_Mattis/readcounts1.txt"
-filename2 = "~/Box Sync/laptop_folders/Duwaerts_Mattis/readcounts2.txt"
-filename3 = "~/Box Sync/laptop_folders/Duwaerts_Mattis/readcounts3.txt"
+filename1 = "~/Downloads/readcounts1.txt"
+filename2 = "~/Downloads/readcounts2.txt"
+filename3 = "~/Downloads/readcounts3.txt"
 
 counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
 counts2 = read.table(filename2, header = T, stringsAsFactors = F) 
@@ -41,9 +41,9 @@ counts_matrix = data.matrix(counts[,grep ("bam", colnames(counts))])
 #colnames(counts_matrix) = sub("_1_algn_Aligned", "", matrix(unlist(strsplit(colnames(counts_matrix), "\\.")), byrow =T, ncol=6)[,3])
 colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.")), byrow =T, ncol=3)[,2]
 #rename to reflect useful labels 
-key1 = read.table("~/Box Sync/laptop_folders/Duwaerts_Mattis/Mattis_Duwaerts_metadata2.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key1 = read.table("~/Downloads/Mattis_Duwaerts_metadata2.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key1)
-key2 = read.table("~/Box Sync/laptop_folders/Duwaerts_Mattis/Mattis_Duwaerts_metadata.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key2 = read.table("~/Downloads/Mattis_Duwaerts_metadata.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key2)
 
 renamesample=list()
@@ -95,22 +95,25 @@ plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Sample
 label each sample by three conditions
 1) cell origin 2) disease status 3) patient source
 ```{r}
-Condition1 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,2], levels = c("iPSC-PBMC", "fibroblast"))
-Condition2 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,3], levels = c("HEALTHY","NASH", "NAFL"))
-Condition3 = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,1])
+CellType = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,2], levels = c("iPSC-PBMC", "fibroblast"))
+DiseaseStatus = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,3], levels = c("HEALTHY","NASH", "NAFL"))
+SampleID = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,1])
+Lab = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,4])
 ```
 
 log transformation for PCA plot 
 ```{r}
-cold <- data.frame("Condition1"=Condition1) 
+cold <- data.frame("CellType"=CellType) 
 rownames(cold) = colnames(counts_matrix_filtered)
 cold
 
-ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered, colData=cold, design=~Condition1 );
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered, colData=cold, design=~CellType );
 colnames(ddsMat) <- colnames(counts_matrix_filtered)
 rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
 
 ```
+
+
 
 run PCA to explore structure in the data in lower dimensions.  
 ```{r}
@@ -118,30 +121,67 @@ par(mfrow=c(2,1))
 pca <- prcomp(t(assay(rld)))
 ```
 
-Plot PC1 against PC2. 
+Plot PC1 against PC2 using variance stabilizing transformation. 
 ```{r}
-d <- data.frame(pca$x, Condition1, Condition2,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
-ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition2"))
+d <- data.frame(pca$x, CellType, DiseaseStatus,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="CellType", color="DiseaseStatus"))
 ppp <- ppp + geom_point(size=6)
 plot(ppp)
 ```
 
-Plot PC1 against PC3. 
+Plot PC1 against PC2 using variance stabilizing transformation. 
 ```{r}
-d <- data.frame(pca$x, group=Condition1, Condition3,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
-ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="Condition1", color="Condition3"))
-ppp <- ppp + geom_point(size=3) + geom_text(aes(label=Condition3), nudge_y=6)
+d <- data.frame(pca$x, group=CellType, SampleID,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="CellType", color="SampleID"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
 plot(ppp)
 ```
 
 Some of the related samples are messing up clustering. 
+
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+```{r}
+d <- data.frame(pca$x, group=CellType, SampleID,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="CellType", color="Lab"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
+plot(ppp)
+```
+
+
+Plot PC1 against PC2 using FPKM. 
+```{r}
+pca_fpkm <- prcomp(t(fpkm_matrix))
+d <- data.frame(pca_fpkm$x, CellType, DiseaseStatus,  name=colnames(fpkm_matrix)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="CellType", color="DiseaseStatus"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+```
+
+
+Plot PC1 against PC2 using FPKM. 
+```{r}
+d <- data.frame(pca_fpkm$x, group=CellType, SampleID,  name=colnames(fpkm_matrix)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="CellType", color="SampleID"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
+plot(ppp)
+```
+
+Plot PC1 against PC2 using FPKM. 
+```{r}
+d <- data.frame(pca_fpkm$x, group=CellType, SampleID,  name=colnames(fpkm_matrix)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="CellType", color="Lab"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
+plot(ppp)
+```
+
 
 Heatmap to see how cells cluster by cell type or experimental condition. Does it agree with dendrogram which uses different clustering methods. 
 ```{r}
 HEATMAP_HEIGHT <- 45 # inchescol
 HEATMAP_WIDTH  <- 15
 annotation <- data.frame(
-  Condition1= Condition1, Condition2=Condition2)
+  CellType= CellType, DiseaseStatus=DiseaseStatus)
 rownames(annotation) <- colnames(fpkm_matrix)
 pheatmap(fpkm_matrix,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
@@ -159,7 +199,7 @@ pheatmap(fpkm_matrix,
 
 Fit the model and estimate dispersion value. Baseline is PBMC.  
 ```{r}
-design_matrix <- model.matrix( ~ Condition1  )
+design_matrix <- model.matrix( ~ CellType  )
 colnames(design_matrix)
 design_matrix
 y_for_DE <- DGEList(counts=counts_matrix_filtered)
@@ -173,7 +213,7 @@ Pretty high estimated dispersion values.
 
 Fibroblast vs PBMC 
 ```{r}
-lrt <- glmLRT(fit, coef = "Condition1fibroblast")
+lrt <- glmLRT(fit, coef = "CellTypefibroblast")
 topTags(lrt)
 smoothScatter(x=lrt$table$logFC, y=-log10(lrt$table$PValue))
 ```
@@ -191,7 +231,7 @@ hist(lrt_table$PValue, main="distribution of p-values")
 Format output into excel sheet. 
 ```{r}
 genes = rownames(counts_matrix_filtered)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl",host="www.ensembl.org")
 head(listAttributes(ensembl), 30)
 hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
 
@@ -204,7 +244,7 @@ colnames(results) = c(
                   , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_fibroblast_vs_pbmc_baseline", sep="_")))
                   )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Box Sync/laptop_folders/Duwaerts_Mattis/duwaerts_mattis_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+write.table(results, paste0("~/Downloads/duwaerts_mattis_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
 
 ```
 
@@ -296,7 +336,7 @@ topGOResults2 <- rbind.fill(GOplot_terms)
 Plot Gene Ontology enrichment results
 ```{r}
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(topGOResults2, paste0("~/Box Sync/laptop_folders/Duwaerts_Mattis/duwaerts_mattis_goresults_", curr_date, ".xls"),  col.names=NA, sep="\t")
+write.table(topGOResults2, paste0("~/Downloads/duwaerts_mattis_goresults_", curr_date, ".xls"),  col.names=NA, sep="\t")
 
 # create object to plot 
 circ <- circle_dat(topGOResults2, data.frame(GOplot_genes))
