@@ -18,6 +18,7 @@ FILE1=$2
 samples=`wc -l $FILE1`
 echo $samples
 ##$ -t 1-$samples  
+SPECIES=$3  # hg38 or other (mm10)
 
 # Read in file containing fastq file locations. 
 INPUT=(0)
@@ -77,9 +78,15 @@ echo /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix
 echo $prefix
 
 if [ "${#INPUT2[@]}" -gt 1 ]; then
-	#/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
-	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/mm10/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+	if [[ $SPECIES == "hg38" ]]; then
+		/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+	else
+		/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/mm10/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim $FASTQ_TRIM_DIR'/'$fastq_trim2
+	fi 
 else
-	#/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
-	/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/mm10/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
+	if [[ $SPECIES == "hg38" ]]; then
+		/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
+	else
+		/wynton/home/willenbring/tfriedrich/LiverCenter/software_source/STAR-2.6.0a/bin/Linux_x86_64/STAR --outSAMtype BAM SortedByCoordinate  --outFilterType BySJout --outFilterMultimapNmax 20 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --outFileNamePrefix   /wynton/home/willenbring/tfriedrich/$DIR_NAME/algn/$prefix --readFilesCommand zcat --genomeDir /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/mm10/ucsc/index/star  --readFilesIn $FASTQ_TRIM_DIR'/'$fastq_trim 
+	fi 
 fi 

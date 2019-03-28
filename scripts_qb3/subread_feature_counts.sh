@@ -13,13 +13,20 @@
 
 # Directory where fastq file for project reside
 DIR_NAME=$1
+SPECIES=$2
 
 if [ ! -d "$BIN_DIR" ]; then
 	mkdir /wynton/home/willenbring/tfriedrich/$DIR_NAME/counts
 fi 
 
+
+# TODO: throw an error if SPECIES isn't specified
 input_files=`ls $DIR_NAME/algn/*bam`
-#annotation_file=~/LiverCenter/genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90.gtf
-annotation_file=~/LiverCenter/genomes/mm10/ensembl/annotation/Mus_musculus.GRCm38.95_ucsc_formatted_rm_unusual_chr.gtf
+if [[ $SPECIES == "hg38" ]]; then
+	annotation_file=~/LiverCenter/genomes/hg38/ensembl/annotation/Homo_sapiens.GRCh38.90.gtf
+else
+	annotation_file=~/LiverCenter/genomes/mm10/ensembl/annotation/Mus_musculus.GRCm38.95_ucsc_formatted_rm_unusual_chr.gtf
+fi 
+
 output_file=~/$DIR_NAME/counts/readcounts.txt
 ~/LiverCenter/software_source/subread-1.6.2-source/bin/featureCounts -p -O -M -T 1   -t exon -g gene_id -a $annotation_file -o $output_file $input_files
