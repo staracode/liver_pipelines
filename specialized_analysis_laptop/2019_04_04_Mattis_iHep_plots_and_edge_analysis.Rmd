@@ -1,0 +1,144 @@
+---
+title: "2019_04_04_Mattis_iHep"
+author: "Tara Friedrich"
+date: "4/4/2019"
+output: html_document
+---
+
+```{r}
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+library(topGO)
+require(plyr)
+library(GOplot)
+library("org.Hs.eg.db")
+sessionInfo()
+```
+
+Read in files with read counts.  
+```{r}
+filename = "~/Downloads/readcounts.txt"
+counts = read.table(filename, header = T, stringsAsFactors = F) 
+
+dim(counts)
+rownames(counts) = counts$Geneid
+
+```
+
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts_matrix = data.matrix(counts[,grep ("bam", colnames(counts))])
+#colnames(counts_matrix) = sub("_1_algn_Aligned", "", matrix(unlist(strsplit(colnames(counts_matrix), "\\.")), byrow =T, ncol=6)[,3])
+colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.")), byrow =T, ncol=3)[,2]
+#rename to reflect useful labels 
+key = read.table("~/Box Sync/laptop_folders/Mattis/endoderm_project/metadata_Aras_Mattis_2018_08_01v3.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key)
+key_keep = key[key$cell.type=="iHep", ]
+
+renamesample=list()
+for (x in 1:nrow(key_keep)){
+  oldname = paste0(sub("-", ".", sub(".fq.gz", "", matrix(unlist(strsplit( key_keep$Location[x], "/")), byrow=T, ncol=7)[,7])), "_")
+  #print (key2$cell.type[x])  #check to make sure every sample is endoderm 
+  newname = paste(key_keep$Name[x], key_keep$cell.type[x], key_keep$Genotype[x], key_keep$dox.treatment[x], sep="_")
+  renamesample[oldname] = newname
+}
+
+colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
+colnames(counts_matrix) = sub ("NASH pt", "NASH", colnames(counts_matrix))
+colnames(counts_matrix) = sub ("wild-type", "HEALTHY", colnames(counts_matrix))
+colnames(counts_matrix) = sub ("No", "doxNo", colnames(counts_matrix))
+colnames(counts_matrix) = sub ("Yes", "doxYes", colnames(counts_matrix))
+```
+
+Filter out genes that are too highly expressed or lowly expressed. 
+```{r}
+keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
+counts_matrix_filtered = counts_matrix[keep,]
+```
+Take the RPKM.
+```{r}
+y <- DGEList(counts=counts_matrix_filtered)
+fpkm_matrix = rpkm (y, gene.length=counts[keep,"Length"], log = FALSE)
+```
+```{r}
+par(cex=.5,font=2)
+hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
+par(mar=c(.2,.2,.2,.2), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
+
+```
+```{r}
+CellType = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,2])
+DiseaseStatus = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,3], levels = c("HEALTHY","NASH"))
+SampleID = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,1])
+doxTx = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=4)[,4], levels = c("doxNo","doxYes"))
+```
+
+log transformation for PCA plot 
+```{r}
+cold <- data.frame("DiseaseStatus"=DiseaseStatus) 
+rownames(cold) = colnames(counts_matrix_filtered)
+cold
+
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered, colData=cold, design=~DiseaseStatus );
+colnames(ddsMat) <- colnames(counts_matrix_filtered)
+rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
+
+```
+
+```{r}
+par(mfrow=c(2,1))
+pca <- prcomp(t(assay(rld)))
+```
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+```{r}
+d <- data.frame(pca$x, CellType, DiseaseStatus, doxTx,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="DiseaseStatus", color="doxTx"))
+ppp <- ppp + geom_point(size=6)
+plot(ppp)
+```
+
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+```{r}
+d <- data.frame(pca$x, group=CellType, SampleID,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="DiseaseStatus", color="doxTx"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
+plot(ppp)
+```
+
+
+Heatmap to see how cells cluster by cell type or experimental condition. Does it agree with dendrogram which uses different clustering methods. 
+```{r}
+HEATMAP_HEIGHT <- 45 # inchescol
+HEATMAP_WIDTH  <- 15
+annotation <- data.frame(
+   DiseaseStatus=DiseaseStatus, doxTx=doxTx)
+rownames(annotation) <- colnames(fpkm_matrix)
+pheatmap(fpkm_matrix,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         , annotation = annotation
+         , fontsize_row=3.5)
+```
+Fit the model and estimate dispersion value. Baseline is healthy.  
+```{r}
+design_matrix <- model.matrix( ~ DiseaseStatus  )
+colnames(design_matrix)
+design_matrix
+y_for_DE <- DGEList(counts=counts_matrix_filtered)
+y_for_DE <- calcNormFactors(y_for_DE)
+y_for_DE = estimateDisp(y_for_DE, design=design_matrix) 
+plotBCV(y_for_DE)
+fit <- glmFit(y_for_DE, design=design_matrix, dispersion=y_for_DE$trended.dispersion)
+```
