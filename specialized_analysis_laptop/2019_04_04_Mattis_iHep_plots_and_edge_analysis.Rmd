@@ -55,14 +55,17 @@ colnames(counts_matrix) = sub ("Yes", "doxYes", colnames(counts_matrix))
 
 Filter out genes that are too highly expressed or lowly expressed. 
 ```{r}
-keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
-counts_matrix_filtered = counts_matrix[keep,]
+#keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
+#counts_matrix_filtered = counts_matrix[keep,]
+counts_matrix_filtered = counts_matrix[,]
 ```
 Take the RPKM.
 ```{r}
 y <- DGEList(counts=counts_matrix_filtered)
-fpkm_matrix = rpkm (y, gene.length=counts[keep,"Length"], log = FALSE)
+#fpkm_matrix = rpkm (y, gene.length=counts[keep,"Length"], log = FALSE)
+fpkm_matrix = rpkm (y, gene.length=counts[,"Length"], log = FALSE)
 ```
+
 ```{r}
 par(cex=.5,font=2)
 hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
@@ -119,17 +122,17 @@ HEATMAP_WIDTH  <- 15
 annotation <- data.frame(
    DiseaseStatus=DiseaseStatus, doxTx=doxTx)
 rownames(annotation) <- colnames(fpkm_matrix)
-pheatmap(fpkm_matrix,
-         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
-         , scale="row"  # actually scale each row
-         , clustering_distance_rows="correlation" # or: euclidean
-         , clustering_distance_cols="correlation"
-         , clustering_method="complete"
-         , display_numbers=FALSE
-         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
-         , show_rownames=FALSE, show_colnames = TRUE
-         , annotation = annotation
-         , fontsize_row=3.5)
+# pheatmap(fpkm_matrix,
+#          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+#          , scale="row"  # actually scale each row
+#          , clustering_distance_rows="correlation" # or: euclidean
+#          , clustering_distance_cols="correlation"
+#          , clustering_method="complete"
+#          , display_numbers=FALSE
+#          , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+#          , show_rownames=FALSE, show_colnames = TRUE
+#          , annotation = annotation
+#          , fontsize_row=3.5)
 ```
 Fit the model and estimate dispersion value. Baseline is healthy.  
 ```{r}
@@ -141,4 +144,73 @@ y_for_DE <- calcNormFactors(y_for_DE)
 y_for_DE = estimateDisp(y_for_DE, design=design_matrix) 
 plotBCV(y_for_DE)
 fit <- glmFit(y_for_DE, design=design_matrix, dispersion=y_for_DE$trended.dispersion)
+```
+
+Fibroblast vs PBMC 
+```{r}
+lrt <- glmLRT(fit, coef = "DiseaseStatusNASH")
+topTags(lrt)
+smoothScatter(x=lrt$table$logFC, y=-log10(lrt$table$PValue))
+```
+
+ 
+```{r}
+lrt_table = data.frame(lrt$table, p.adjust(lrt$table$PValue, method = "BH"))
+colnames(lrt_table) = c(colnames(lrt$table), "adjPVal_BH")
+hist(lrt_table$PValue, main="distribution of p-values") 
+```
+
+
+
+
+Format output into excel sheet. 
+```{r}
+genes = rownames(counts_matrix_filtered)
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl",host="www.ensembl.org")
+head(listAttributes(ensembl), 30)
+hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+
+index = match (genes, hgnc_swissprot$ensembl_gene_id)
+results = data.frame(hgnc_swissprot[index,], counts_matrix_filtered, fpkm_matrix, lrt_table)
+colnames(results) = c(
+                    colnames(hgnc_swissprot[index,])
+                  , unlist(lapply (colnames(counts_matrix_filtered), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_matrix), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_NASH_vs_HEALTHY_baseline", sep="_")))
+                  )
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Downloads/mattis_ihep_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+
+```
+
+
+```{r fpkm values of DE genes}
+rownames(results) = paste(results$hgnc_symbol, results$ensembl_gene_id, seq(1, nrow(results)), sep="_")
+
+de_fpkm_values = results[which(results[,"adjPVal_BH__NASH_vs_HEALTHY_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
+pheatmap(de_fpkm_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+
+specific_genes_fpkm_values = results[which(results$hgnc_symbol %in% c("APOB","MTTP","PLTP","TM6SF2","PNPLA3","APOBEC1","APOE")), grep ("_fpkm", colnames(results))]
+
+pheatmap(specific_genes_fpkm_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=TRUE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
 ```
