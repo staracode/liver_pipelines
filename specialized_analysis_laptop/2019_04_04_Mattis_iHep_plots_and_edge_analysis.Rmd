@@ -200,8 +200,19 @@ pheatmap(de_fpkm_values,
          #, annotation = annotation
          , fontsize_row=3.5)
 
-specific_genes_fpkm_values = results[which(results$hgnc_symbol %in% c("APOB","MTTP","PLTP","TM6SF2","PNPLA3","APOBEC1","APOE")), grep ("_fpkm", colnames(results))]
+specific_genes_fpkm_values = results[which(results$hgnc_symbol %in% c("APOB","MTTP","PLTP","TM6SF2","PNPLA3","APOBEC1","APOE", "GAPDH")), grep ("_fpkm", colnames(results))]
 
+pheatmap(specific_genes_fpkm_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         #, scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=TRUE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
 pheatmap(specific_genes_fpkm_values,
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
