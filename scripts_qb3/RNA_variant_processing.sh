@@ -35,21 +35,24 @@ echo "${INPUT[@]}"
 # paired end 
 fastq="${INPUT[$SGE_TASK_ID]}"
 
+#variant calling rnaseq pipeline 
+#https://software.broadinstitute.org/gatk/documentation/article.php?id=3891
+
 # Do I want to change fastq name to sample name here? 
 if [[ $fastq == *"fq.gz"* ]]; then
 	suffix1=`echo $fastq | sed 's/.fq.gz/_algn.bam/'`
-	suffix2=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.bam/'`
-	suffix3=`echo $fastq | sed 's/.fq.gz/_algn_rmDup.txt/'`
-	suffix4=`echo $fastq | sed 's/.fq.gz/_algn_rmDup_addRG.bam/'`
+	suffix2=`echo $fastq | sed 's/.fq.gz/_algn_addRG.bam/'`
+	suffix3=`echo $fastq | sed 's/.fq.gz/_algn_addRG_rmDup.bam/'`
+	suffix4=`echo $fastq | sed 's/.fq.gz/_algn_addRG_rmDup.txt/'`
 	suffix4_5=`echo $fastq | sed 's/.fq.gz/_algn_rmDup_addRG_SplitNCigar.bam/'`
 	suffix5=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels.g.vcf/'`
 	suffix6=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels_genotype.g.vcf/'`
 	suffix7=`echo $fastq | sed 's/.fq.gz/_raw_snps_indels_genotype_filtered.g.vcf/'`
 else
 	suffix1=`echo $fastq | sed 's/.fastq.gz/_algn.bam/'`
-	suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.bam/'`
-	suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup.txt/'`
-	suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup_addRG.bam/'`
+	suffix2=`echo $fastq | sed 's/.fastq.gz/_algn_addRG.bam/'`
+	suffix3=`echo $fastq | sed 's/.fastq.gz/_algn_addRG_rmDup.bam/'`
+	suffix4=`echo $fastq | sed 's/.fastq.gz/_algn_addRG_rmDup.txt/'`
 	suffix4_5=`echo $fastq | sed 's/.fastq.gz/_algn_rmDup_addRG_SplitNCigar.bam/'`
 	suffix5=`echo $fastq | sed 's/.fastq.gz/_raw_snps_indels.g.vcf/'`
 	suffix6=`echo $fastq | sed 's/.fastq.gz/_raw_snps_indels_genotype.g.vcf/'`
@@ -68,12 +71,15 @@ echo $OUTPUTDIR/$prefix
 #correctly naming samples is more important if I run the same sample multiple times based on this post:
 #https://www.biostars.org/p/136302/
 
+#descriptoin of reads gorups
+#https://gatkforums.broadinstitute.org/gatk/discussion/6472/read-groups
+
 #extract ID and PU from the fastq file
 # is my bam file sorted? 
 # add read groups (so that I can merge later? )
 bin/jdk1.8.0_191/bin/java -jar bin/picard.jar AddOrReplaceReadGroups \
-       I=$OUTPUTDIR/$suffix2 \
-       O=$OUTPUTDIR/$suffix4 \
+       I=$OUTPUTDIR/$suffix1 \
+       O=$OUTPUTDIR/$suffix2 \
        RGID=4 \
        RGLB=lib1 \
        RGPL=illumina \
@@ -83,9 +89,9 @@ bin/jdk1.8.0_191/bin/java -jar bin/picard.jar AddOrReplaceReadGroups \
 #remove duplicates
 bin/jdk1.8.0_191/bin/java -jar bin/picard.jar MarkDuplicates \
 	#ASSUME_SORTED=true \
-	I=$OUTPUTDIR/$suffix1 \ 
-	O=$OUTPUTDIR/$suffix2 \
-	M=$OUTPUTDIR/$suffix3 \
+	I=$OUTPUTDIR/$suffix2 \ 
+	O=$OUTPUTDIR/$suffix3 \
+	M=$OUTPUTDIR/$suffix4 \
 	CREATE_INDEX=true 
 
 #samtools index $OUTPUTDIR/$suffix4
@@ -97,11 +103,14 @@ bin/jdk1.8.0_191/bin/java -jar /wynton/home/willenbring/tfriedrich/bin/gatk-4.0.
 	GenomeAnalysisTK.jar \
 	-T SplitNCigarReads \
 	-R /wynton/home/willenbring/tfriedrich/LiverCenter/genomes/hg38/ucsc/all_chromosomes.fa \
-	-I $OUTPUTDIR/$suffix4  \
+	-I $OUTPUTDIR/$suffix3  \
 	-o $OUTPUTDIR/$suffix4_5  \
 	-rf ReassignOneMappingQuality \
 	-RMQF 255 -RMQT 60 \
 	-U ALLOW_N_CIGAR_READS
+
+#haplotype caller
+#https://software.broadinstitute.org/gatk/documentation/tooldocs/4.0.8.0/org_broadinstitute_hellbender_tools_walkers_haplotypecaller_HaplotypeCaller.php
 
 bin/jdk1.8.0_191/bin/java -jar /wynton/home/willenbring/tfriedrich/bin/gatk-4.0.11.0/gatk-package-4.0.11.0-local.jar \
    HaplotypeCaller \
