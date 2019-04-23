@@ -1,0 +1,123 @@
+---
+itle: "Duwaerts RNA-seq human iPSC lines"
+author: "Tara Friedrich"
+date: "4/22/2019"
+output: html_document
+---
+
+```{r }
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+library(topGO)
+require(plyr)
+library(GOplot)
+library("org.Hs.eg.db")
+sessionInfo()
+```
+
+
+Read in files with read counts.  
+```{r}
+filename1 = "~/Downloads/readcounts_iHEP.txt"
+filename2 = "~/Downloads/readcounts_iPSC.txt"
+
+counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
+counts2 = read.table(filename2, header = T, stringsAsFactors = F) 
+
+#counts = cbind(counts1, counts2)
+#dim(counts)
+#rownames(counts) = counts1$Geneid
+
+```
+
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts1_matrix = data.matrix(counts1[,grep ("bam", colnames(counts1))])
+colnames(counts1_matrix) = matrix(unlist(strsplit(colnames(counts1_matrix), "algn.")), byrow =T, ncol=3)[,2]
+counts2_matrix = data.matrix(counts2[,grep ("bam", colnames(counts2))])
+colnames(counts2_matrix) = matrix(unlist(strsplit(colnames(counts2_matrix), "algn.")), byrow =T, ncol=3)[,2]
+#rename to reflect useful labels 
+key1 = read.table("~/Downloads/metadata_Duwaerts_iHEP.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key1)
+key2 = read.table("~/Downloads/metadata_Duwaerts_iPSC.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key2)
+
+renamesample1=list()
+for (x in 1:nrow(key1)){
+  key1$FILE.NAME[x] = sub("-", ".", key1$FILE.NAME[x])  #issues with "-" in fastq file names
+  oldname = paste0(sub(".fastq.gz", "", key1$FILE.NAME[x], "_"), "_")
+  #print (key1$CELL.TYPE[x])  #check to make sure every sample is iPSC 
+  newname = paste(key1$SAMPLE.TYPE[x], key1$SAMPLE.NAME[x], key1$DISEASE.STATUS[x], sep="_")
+  renamesample1[oldname] = newname
+}
+renamesample2=list()
+for (x in 1:nrow(key1)){
+  oldname = paste0(sub(".fastq.gz", "", key2$FILE.NAME[x], "_"), "_")
+  #print (key2$CELL.TYPE[x])  #check to make sure every sample is iHEP 
+  newname = paste(key2$SAMPLE.TYPE[x], key2$SAMPLE.NAME[x], key2$DISEASE.STATUS[x], sep="_")
+  renamesample2[oldname] = newname
+}
+
+colnames(counts1_matrix) = unlist(lapply (colnames(counts1_matrix), function(x) renamesample1[[x]]))
+colnames(counts1_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts1_matrix))
+colnames(counts2_matrix) = unlist(lapply (colnames(counts2_matrix), function(x) renamesample2[[x]]))
+colnames(counts2_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts2_matrix))
+
+```
+Filter out genes that are too highly expressed or lowly expressed. 
+```{r}
+keep = rowMeans(counts1_matrix) > 5 & rowMeans(counts1_matrix) < 5000 
+counts1_matrix_filtered = counts1_matrix[keep,]
+```
+Take the RPKM.
+```{r}
+y <- DGEList(counts=counts1_matrix_filtered)
+fpkm_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = FALSE)
+```
+Dendrogram showing relationships using fpkm. 
+```{r}
+par(cex=.5,font=2)
+hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
+par(mar=c(.2,.2,.2,.2), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
+```
+
+```
+
+
+label each sample by three conditions
+ 1) disease status 2) patient source
+```{r}
+DiseaseStatus1 = factor(matrix (unlist(strsplit(colnames(counts1_matrix_filtered), "_")), byrow=T, ncol=3)[,3], levels = c("CONTROL","NASH"))
+SampleID1 = factor(matrix (unlist(strsplit(colnames(counts1_matrix_filtered), "_")), byrow=T, ncol=3)[,2])
+```
+
+
+log transformation for PCA plot 
+```{r}
+cold1 <- data.frame("DiseaseStatus1"=DiseaseStatus1) 
+rownames(cold1) = colnames(counts1_matrix_filtered)
+cold1
+
+ddsMat1 <- DESeq2::DESeqDataSetFromMatrix(countData=counts1_matrix_filtered, colData=cold1, design=~DiseaseStatus1 );
+colnames(ddsMat1) <- colnames(counts1_matrix_filtered)
+rld1 <- DESeq2::rlog(ddsMat1) # LOG TRANSFORMED.
+```
+
+
+run PCA to explore structure in the data in lower dimensions.  
+```{r}
+par(mfrow=c(2,1))
+pca1 <- prcomp(t(assay(rld1)))
+```
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+```{r}
+d <- data.frame(pca1$x, group=DiseaseStatus1, SampleID1,  name=colnames(rld1)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="DiseaseStatus1", color="SampleID1"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID1), nudge_y=6)
+plot(ppp)
+```
