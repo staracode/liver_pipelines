@@ -1,5 +1,5 @@
 ---
-Title: "Duwaerts RNA-seq human iPSC lines"
+Title: "Duwaerts RNA-seq human iHEP lines"
 author: "Tara Friedrich"
 date: "4/22/2019"
 output: html_document
@@ -21,60 +21,41 @@ sessionInfo()
 
 Read in files with read counts.  
 ```{r}
-filename1 = "~/Downloads/readcounts_iHEP.txt"
-filename2 = "~/Downloads/readcounts_iPSC.txt"
-
-counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
-counts2 = read.table(filename2, header = T, stringsAsFactors = F) 
-
+filename2 = "~/Downloads/readcounts_iHEP.txt"
+counts = read.table(filename2, header = T, stringsAsFactors = F) 
 ```
 
 Remove metadata (Gene, coordinates, etc)
 ```{r}
-counts1_matrix = data.matrix(counts1[,grep ("bam", colnames(counts1))])
-colnames(counts1_matrix) = matrix(unlist(strsplit(colnames(counts1_matrix), "algn.")), byrow =T, ncol=3)[,2]
-rownames(counts1_matrix) = counts1$Geneid
-counts2_matrix = data.matrix(counts2[,grep ("bam", colnames(counts2))])
-colnames(counts2_matrix) = matrix(unlist(strsplit(colnames(counts2_matrix), "algn.")), byrow =T, ncol=3)[,2]
-rownames(counts2_matrix) = counts2$Geneid
+counts_matrix = data.matrix(counts[,grep ("bam", colnames(counts))])
+colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.")), byrow =T, ncol=3)[,2]
+rownames(counts_matrix) = counts$Geneid
 
-#rename to reflect useful labels 
-key1 = read.table("~/Downloads/metadata_Duwaerts_iHEP.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
-head(key1)
-key2 = read.table("~/Downloads/metadata_Duwaerts_iPSC.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
-head(key2)
+#rename columns/sample to reflect useful labels 
+key = read.table("~/Downloads/metadata_Duwaerts_iHEP.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key)
 
-renamesample1=list()
-for (x in 1:nrow(key1)){
-  key1$FILE.NAME[x] = sub("-", ".", key1$FILE.NAME[x])  #issues with "-" in fastq file names
-  oldname = paste0(sub(".fastq.gz", "", key1$FILE.NAME[x], "_"), "_")
-  #print (key1$CELL.TYPE[x])  #check to make sure every sample is iPSC 
-  newname = paste(key1$SAMPLE.TYPE[x], key1$SAMPLE.NAME[x], key1$DISEASE.STATUS[x], sep="_")
-  renamesample1[oldname] = newname
-}
-renamesample2=list()
-for (x in 1:nrow(key1)){
-  oldname = paste0(sub(".fastq.gz", "", key2$FILE.NAME[x], "_"), "_")
-  #print (key2$CELL.TYPE[x])  #check to make sure every sample is iHEP 
-  newname = paste(key2$SAMPLE.TYPE[x], key2$SAMPLE.NAME[x], key2$DISEASE.STATUS[x], sep="_")
-  renamesample2[oldname] = newname
+
+renamesample=list()
+for (x in 1:nrow(key)){
+  key$FILE.NAME[x] = sub("-", ".", key$FILE.NAME[x])  #issues with "-" in fastq file names
+  oldname = paste0(sub(".fastq.gz", "", key$FILE.NAME[x], "_"), "_")
+  newname = paste(key$SAMPLE.TYPE[x], key$SAMPLE.NAME[x], key$DISEASE.STATUS[x], sep="_")
+  renamesample[oldname] = newname
 }
 
-colnames(counts1_matrix) = unlist(lapply (colnames(counts1_matrix), function(x) renamesample1[[x]]))
-colnames(counts1_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts1_matrix))
-colnames(counts2_matrix) = unlist(lapply (colnames(counts2_matrix), function(x) renamesample2[[x]]))
-colnames(counts2_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts2_matrix))
-
+colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
+colnames(counts_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts_matrix))
 ```
-Filter out genes that are too highly expressed or lowly expressed. 
+Filter out genes that are too highly expressed or lowly expressed. Highly expressed genes are usually mitochondrial. 
 ```{r}
-keep = rowMeans(counts1_matrix) > 5 & rowMeans(counts1_matrix) < 5000 
-counts_matrix_filtered = counts1_matrix[keep,]
+keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
+counts_matrix_filtered = counts_matrix[keep,]
 ```
 Take the RPKM.
 ```{r}
 y <- DGEList(counts=counts_matrix_filtered)
-fpkm_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = FALSE)
+fpkm_matrix = rpkm (y, gene.length=counts[keep,"Length"], log = FALSE)
 ```
 Dendrogram showing relationships using fpkm. 
 ```{r}
@@ -84,8 +65,8 @@ par(mar=c(.2,.2,.2,.2), pty='s')
 plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
 ```
 
-label each sample by three conditions
- 1) disease status 2) patient source
+label each sample by two conditions
+1) disease status 2) patient source
 ```{r}
 DiseaseStatus = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=3)[,3], levels = c("CONTROL","NASH"))
 SampleID = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=3)[,2])
@@ -183,7 +164,7 @@ colnames(results) = c(
                   , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_NASH_vs_CONTROL_baseline", sep="_")))
                   )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Downloads/duwaerts_", names(table(key1$SAMPLE.TYPE)), "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+write.table(results, paste0("~/Downloads/duwaerts_", names(table(key$SAMPLE.TYPE)), "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
 
 ```
 
@@ -235,7 +216,7 @@ GOplot_terms=list()
 topGOResults <- rbind.fill(tab)
 #write.csv(topGOResults, file = "topGOResults.csv")
 topGOResults2 <- rbind.fill(GOplot_terms)
-write.table(topGOResults2, file = paste0("~/Downloads/duwaerts_", names(table(key1$SAMPLE.TYPE)), "_topGO_", curr_date, ".xls"), sep="\t",col.names=NA)
+write.table(topGOResults2, file = paste0("~/Downloads/duwaerts_", names(table(key$SAMPLE.TYPE)), "_topGO_", curr_date, ".xls"), sep="\t",col.names=NA)
 
 
 circ <- circle_dat(topGOResults2, data.frame(GOplot_genes))
@@ -263,6 +244,8 @@ pheatmap(de_mean_values,
          #, annotation = annotation
          , fontsize_row=3.5)
 ```
+
+Differentially expressed genes `r length(which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05))`. 
 ```{r}
 de_fpkm_values = results[which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
 pheatmap(de_fpkm_values,
@@ -278,9 +261,59 @@ pheatmap(de_fpkm_values,
          , fontsize_row=3.5)
 ```
 
+TODO:
+1) what are the genes that are different in the outlier sample ribosomal?
+2) kegg pathway analysis 
+3) WGCNA
+```{r, echo=FALSE}
+sessionInfo() 
+```
+
 
 ```{r}
-#what are the genes that are different in the outlier sample ribosomal?
-#kegg pathway analysis 
-#iPSC 
+OutlierStatus = factor(colnames(counts_matrix_filtered) %in% c("iHEP_20_NASH", "iHEP_22_NASH", "iHEP_54_CONTROL"), levels = c("FALSE","TRUE"))
+design_matrix_outliers <- model.matrix( ~ OutlierStatus  )
+colnames(design_matrix_outliers)
+design_matrix_outliers
+
+y_for_DE_outliers <- DGEList(counts=counts_matrix_filtered)
+y_for_DE_outliers <- calcNormFactors(y_for_DE_outliers)
+y_for_DE_outliers = estimateDisp(y_for_DE_outliers, design=design_matrix_outliers) 
+plotBCV(y_for_DE_outliers)
+fit <- glmFit(y_for_DE_outliers, design=design_matrix_outliers, dispersion=y_for_DE_outliers$trended.dispersion)
 ```
+
+Outlier vs everyone else
+```{r}
+lrt <- glmLRT(fit, coef = "OutlierStatusTRUE")
+topTags(lrt)
+```
+
+```{r}
+counts_matrix_filtered_sansoutliers = counts_matrix_filtered[,!colnames(counts_matrix_filtered) %in% c("iHEP_20_NASH", "iHEP_22_NASH", "iHEP_54_CONTROL")]
+DiseaseStatus_sansoutliers = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered_sansoutliers), "_")), byrow=T, ncol=3)[,3], levels = c("CONTROL","NASH"))
+SampleID_sansoutliers = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered_sansoutliers), "_")), byrow=T, ncol=3)[,2])
+cold_sansoutliers <- data.frame("DiseaseStatus_sansoutliers"=DiseaseStatus_sansoutliers) 
+rownames(cold_sansoutliers) = colnames(counts_matrix_filtered_sansoutliers)
+cold_sansoutliers
+
+ddsMat_sansoutliers <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered_sansoutliers, colData=cold_sansoutliers, design=~DiseaseStatus_sansoutliers );
+colnames(ddsMat_sansoutliers) <- colnames(counts_matrix_filtered_sansoutliers)
+rld_sansoutliers <- DESeq2::rlog(ddsMat_sansoutliers) # LOG TRANSFORMED.
+```
+
+
+run PCA to explore structure in the data in lower dimensions.  
+```{r}
+par(mfrow=c(2,1))
+pca_sansoutliers <- prcomp(t(assay(rld_sansoutliers)))
+```
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+
+```{r}
+d_sansoutliers <- data.frame(pca_sansoutliers$x, group=DiseaseStatus_sansoutliers, SampleID_sansoutliers,  name=colnames(rld_sansoutliers)) # returns PC1, PC2, ... PC8... etc
+ppp_sansoutliers <- ggplot(d_sansoutliers, aes_string(x="PC1", y="PC2",shape="DiseaseStatus_sansoutliers", color="SampleID_sansoutliers"))
+ppp_sansoutliers <- ppp_sansoutliers + geom_point(size=3) + geom_text(aes(label=SampleID_sansoutliers), nudge_y=6)
+plot(ppp_sansoutliers)
+```  

@@ -1,0 +1,317 @@
+---
+Title: "Duwaerts RNA-seq human iPSC lines"
+author: "Tara Friedrich"
+date: "4/22/2019"
+output: html_document
+---
+
+```{r }
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+library(topGO)
+require(plyr)
+library(GOplot)
+library("org.Hs.eg.db")
+sessionInfo()
+```
+
+
+Read in files with read counts.  
+```{r}
+filename2 = "~/Downloads/readcounts_iPSC.txt"
+counts = read.table(filename2, header = T, stringsAsFactors = F) 
+```
+
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts_matrix = data.matrix(counts[,grep ("bam", colnames(counts))])
+colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.")), byrow =T, ncol=3)[,2]
+rownames(counts_matrix) = counts$Geneid
+
+#rename columns/sample to reflect useful labels 
+key = read.table("~/Downloads/metadata_Duwaerts_iPSC.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key)
+
+
+renamesample=list()
+for (x in 1:nrow(key)){
+  oldname = paste0(sub(".fastq.gz", "", key$FILE.NAME[x], "_"), "_")
+  newname = paste(key$SAMPLE.TYPE[x], key$SAMPLE.NAME[x], key$DISEASE.STATUS[x], sep="_")
+  renamesample[oldname] = newname
+}
+
+colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
+colnames(counts_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts_matrix))
+```
+Filter out genes that are too highly expressed or lowly expressed. Highly expressed genes are usually mitochondrial. 
+```{r}
+keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
+counts_matrix_filtered = counts_matrix[keep,]
+```
+Take the RPKM.
+```{r}
+y <- DGEList(counts=counts_matrix_filtered)
+fpkm_matrix = rpkm (y, gene.length=counts[keep,"Length"], log = FALSE)
+```
+Dendrogram showing relationships using fpkm. 
+```{r}
+par(cex=.5,font=2)
+hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
+par(mar=c(.2,.2,.2,.2), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
+```
+
+label each sample by two conditions
+1) disease status 2) patient source
+```{r}
+DiseaseStatus = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=3)[,3], levels = c("CONTROL","NASH"))
+SampleID = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered), "_")), byrow=T, ncol=3)[,2])
+```
+
+
+log transformation for PCA plot 
+```{r}
+cold <- data.frame("DiseaseStatus"=DiseaseStatus) 
+rownames(cold) = colnames(counts_matrix_filtered)
+cold
+
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered, colData=cold, design=~DiseaseStatus );
+colnames(ddsMat) <- colnames(counts_matrix_filtered)
+rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
+```
+
+
+run PCA to explore structure in the data in lower dimensions.  
+```{r}
+par(mfrow=c(2,1))
+pca <- prcomp(t(assay(rld)))
+```
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+
+```{r}
+d <- data.frame(pca$x, group=DiseaseStatus, SampleID,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="DiseaseStatus", color="SampleID"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
+plot(ppp)
+```  
+
+```{r}
+HEATMAP_HEIGHT <- 45 # inchescol
+HEATMAP_WIDTH  <- 15
+annotation <- data.frame(
+  SampleID= SampleID, DiseaseStatus=DiseaseStatus)
+rownames(annotation) <- colnames(fpkm_matrix)
+pheatmap(fpkm_matrix,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         , annotation = annotation
+         , fontsize_row=3.5)
+```
+
+Fit the model and estimate dispersion value. Baseline is PBMC.  
+```{r}
+design_matrix <- model.matrix( ~ DiseaseStatus  )
+colnames(design_matrix)
+design_matrix
+y_for_DE <- DGEList(counts=counts_matrix_filtered)
+y_for_DE <- calcNormFactors(y_for_DE)
+y_for_DE = estimateDisp(y_for_DE, design=design_matrix) 
+plotBCV(y_for_DE)
+fit <- glmFit(y_for_DE, design=design_matrix, dispersion=y_for_DE$trended.dispersion)
+```
+Somewhat high trended estimated dispersion values (expect something around .4). 
+
+
+NASH vs Control
+```{r}
+lrt <- glmLRT(fit, coef = "DiseaseStatusNASH")
+topTags(lrt)
+smoothScatter(x=lrt$table$logFC, y=-log10(lrt$table$PValue))
+```
+
+Histogram should skew left.  
+```{r}
+lrt_table = data.frame(lrt$table, p.adjust(lrt$table$PValue, method = "BH"))
+colnames(lrt_table) = c(colnames(lrt$table), "adjPVal_BH")
+hist(lrt_table$PValue, main="distribution of p-values") 
+```
+
+
+Format output into excel sheet. 
+```{r}
+genes = rownames(counts_matrix_filtered)
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl",host="www.ensembl.org")
+head(listAttributes(ensembl), 30)
+hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','hgnc_symbol','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+
+index = match (genes, hgnc_swissprot$ensembl_gene_id)
+results = data.frame(hgnc_swissprot[index,], counts_matrix_filtered, fpkm_matrix, lrt_table)
+colnames(results) = c(
+                    colnames(hgnc_swissprot[index,])
+                  , unlist(lapply (colnames(counts_matrix_filtered), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_matrix), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_table), function(x) paste(x, "_NASH_vs_CONTROL_baseline", sep="_")))
+                  )
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Downloads/duwaerts_", names(table(key$SAMPLE.TYPE)), "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+
+```
+
+Gene Ontology 
+```{r}
+#setup gene DE for GOplot package later
+GOplot_genes = results[grep ("_NASH_vs_CONTROL_baseline",colnames(results))]
+colnames(GOplot_genes) = c("logFC", "logCPM", "LR", "Pvalue", "BH")
+GOplot_genes["ID"] = results[,"ensembl_gene_id"]
+colnames(GOplot_genes)
+length(unique(GOplot_genes$ID))
+GOplot_genes = GOplot_genes[, c("ID", "logFC")] #we only need these two columns for TopGO
+
+geneIDs = results[,"ensembl_gene_id"]
+inUniverse = geneIDs %in%  results[,"ensembl_gene_id"]
+inSelection = geneIDs %in% results[which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05),"ensembl_gene_id"]
+alg <- factor( as.integer( inSelection[inUniverse] ) )
+names(alg) <- geneIDs[inUniverse]
+head(alg)
+
+onts = c( "MF", "BP", "CC" )
+tab = as.list(onts)
+names(tab) = onts
+GOplot_terms=list()
+  for(i in 1:3) {
+    ## prepare data
+    tgd <- new( "topGOdata", ontology=onts[i], allGenes = alg, nodeSize=5,
+                 annot=annFUN.org, mapping="org.Hs.eg.db", ID = "ensembl" )
+
+    ## run tests
+    resultTopGO.elim <- runTest(tgd, algorithm = "elim", statistic = "Fisher" )
+    resultTopGO.classic <- runTest(tgd, algorithm = "classic", statistic = "Fisher" )
+
+    ## look at results
+    tab[[i]] <- GenTable( tgd, Fisher.elim = resultTopGO.elim, 
+        Fisher.classic = resultTopGO.classic,
+        orderBy = "Fisher.classic" , topNodes = 200)
+
+    #convert list to dataframe  
+    allGO = genesInTerm(tgd, tab[[i]][,"GO.ID"])
+    test = ldply (lapply(allGO, function(x) paste(x, collapse=",")), data.frame)
+    GOplot_terms[[i]] = data.frame(onts[i], tab[[i]], test, stringsAsFactors = FALSE)
+    GOplot_terms[[i]][, "Fisher.elim"] = as.numeric(as.character(GOplot_terms[[i]][, "Fisher.elim"]))
+    GOplot_terms[[i]][, "Fisher.elim.BH"] = p.adjust(GOplot_terms[[i]][, "Fisher.elim"], method="BH")
+    GOplot_terms[[i]] = GOplot_terms[[i]][, c("onts.i.", "GO.ID", "Term", "Fisher.elim.BH", "X..i..")]
+    colnames(GOplot_terms[[i]]) = c("Category", "ID", "Term",  "adj_pval", "Genes")
+  }
+
+topGOResults <- rbind.fill(tab)
+#write.csv(topGOResults, file = "topGOResults.csv")
+topGOResults2 <- rbind.fill(GOplot_terms)
+write.table(topGOResults2, file = paste0("~/Downloads/duwaerts_", names(table(key$SAMPLE.TYPE)), "_topGO_", curr_date, ".xls"), sep="\t",col.names=NA)
+
+
+circ <- circle_dat(topGOResults2, data.frame(GOplot_genes))
+GOBar(circ)
+GOBar(circ, display='multiple')
+GOBubble(circ, labels = 10)
+GOCircle(circ)
+
+```
+
+```{r}
+mean_values = 2^((fit$coefficients) %*% t(design_matrix) )
+colnames(mean_values) = colnames (counts_matrix_filtered)
+
+de_mean_values = mean_values[rownames(mean_values) %in%  results[which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05),"ensembl_gene_id"], ]
+pheatmap(de_mean_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         #, scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+```
+
+Differentially expressed genes `r length(which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05))`. 
+```{r}
+de_fpkm_values = results[which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
+pheatmap(de_fpkm_values,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+```
+
+TODO:
+1) what are the genes that are different in the outlier sample ribosomal?
+2) kegg pathway analysis 
+3) WGCNA
+```{r, echo=FALSE}
+sessionInfo() 
+```
+
+```{r}
+OutlierStatus = factor(colnames(counts_matrix_filtered) %in% c("iPS_20_NASH", "iPS_22_NASH", "iPS_54_CONTROL"), levels = c("FALSE","TRUE"))
+design_matrix_outliers <- model.matrix( ~ OutlierStatus  )
+colnames(design_matrix_outliers)
+design_matrix_outliers
+
+y_for_DE_outliers <- DGEList(counts=counts_matrix_filtered)
+y_for_DE_outliers <- calcNormFactors(y_for_DE_outliers)
+y_for_DE_outliers = estimateDisp(y_for_DE_outliers, design=design_matrix_outliers) 
+plotBCV(y_for_DE_outliers)
+fit <- glmFit(y_for_DE_outliers, design=design_matrix_outliers, dispersion=y_for_DE_outliers$trended.dispersion)
+```
+
+Outlier vs everyone else
+```{r}
+lrt <- glmLRT(fit, coef = "OutlierStatusTRUE")
+topTags(lrt)
+```
+
+```{r}
+counts_matrix_filtered_sansoutliers = counts_matrix_filtered[,!colnames(counts_matrix_filtered) %in% c("iPS_20_NASH", "iPS_22_NASH", "iPS_54_CONTROL")]
+DiseaseStatus_sansoutliers = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered_sansoutliers), "_")), byrow=T, ncol=3)[,3], levels = c("CONTROL","NASH"))
+SampleID_sansoutliers = factor(matrix (unlist(strsplit(colnames(counts_matrix_filtered_sansoutliers), "_")), byrow=T, ncol=3)[,2])
+cold_sansoutliers <- data.frame("DiseaseStatus_sansoutliers"=DiseaseStatus_sansoutliers) 
+rownames(cold_sansoutliers) = colnames(counts_matrix_filtered_sansoutliers)
+cold_sansoutliers
+
+ddsMat_sansoutliers <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered_sansoutliers, colData=cold_sansoutliers, design=~DiseaseStatus_sansoutliers );
+colnames(ddsMat_sansoutliers) <- colnames(counts_matrix_filtered_sansoutliers)
+rld_sansoutliers <- DESeq2::rlog(ddsMat_sansoutliers) # LOG TRANSFORMED.
+```
+
+
+run PCA to explore structure in the data in lower dimensions.  
+```{r}
+par(mfrow=c(2,1))
+pca_sansoutliers <- prcomp(t(assay(rld_sansoutliers)))
+```
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+
+```{r}
+d_sansoutliers <- data.frame(pca_sansoutliers$x, group=DiseaseStatus_sansoutliers, SampleID_sansoutliers,  name=colnames(rld_sansoutliers)) # returns PC1, PC2, ... PC8... etc
+ppp_sansoutliers <- ggplot(d_sansoutliers, aes_string(x="PC1", y="PC2",shape="DiseaseStatus_sansoutliers", color="SampleID_sansoutliers"))
+ppp_sansoutliers <- ppp_sansoutliers + geom_point(size=3) + geom_text(aes(label=SampleID_sansoutliers), nudge_y=6)
+plot(ppp_sansoutliers)
+```  
