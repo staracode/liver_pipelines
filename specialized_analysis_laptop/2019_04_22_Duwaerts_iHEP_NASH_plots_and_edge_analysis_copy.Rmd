@@ -21,7 +21,7 @@ sessionInfo()
 
 Read in files with read counts.  
 ```{r}
-filename2 = "~/Downloads/readcounts_iHEP.txt"
+filename2 = "~/Downloads/2019_04_25_Duwaerts_analysis_plots/readcounts_iHEP.txt"
 counts = read.table(filename2, header = T, stringsAsFactors = F) 
 ```
 
@@ -32,7 +32,7 @@ colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.
 rownames(counts_matrix) = counts$Geneid
 
 #rename columns/sample to reflect useful labels 
-key = read.table("~/Downloads/metadata_Duwaerts_iHEP.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/metadata_Duwaerts_iHEP.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key)
 
 
@@ -49,6 +49,8 @@ colnames(counts_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts_m
 ```
 Filter out genes that are too highly expressed or lowly expressed. Highly expressed genes are usually mitochondrial. 
 ```{r}
+length(rowMeans(counts_matrix) < 5000 )
+dim(counts_matrix)
 keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
 counts_matrix_filtered = counts_matrix[keep,]
 ```
@@ -168,7 +170,7 @@ write.table(results, paste0("~/Downloads/duwaerts_", names(table(key$SAMPLE.TYPE
 
 ```
 
-Gene Ontology 
+Gene Ontology using TopGO and plots using GOplot
 ```{r}
 #setup gene DE for GOplot package later
 GOplot_genes = results[grep ("_NASH_vs_CONTROL_baseline",colnames(results))]
@@ -226,7 +228,7 @@ GOBubble(circ, labels = 10)
 GOCircle(circ)
 
 ```
-
+Plot these differentially expressed genes.  
 ```{r}
 mean_values = 2^((fit$coefficients) %*% t(design_matrix) )
 colnames(mean_values) = colnames (counts_matrix_filtered)
@@ -280,13 +282,29 @@ y_for_DE_outliers <- DGEList(counts=counts_matrix_filtered)
 y_for_DE_outliers <- calcNormFactors(y_for_DE_outliers)
 y_for_DE_outliers = estimateDisp(y_for_DE_outliers, design=design_matrix_outliers) 
 plotBCV(y_for_DE_outliers)
-fit <- glmFit(y_for_DE_outliers, design=design_matrix_outliers, dispersion=y_for_DE_outliers$trended.dispersion)
+fit_outliers <- glmFit(y_for_DE_outliers, design=design_matrix_outliers, dispersion=y_for_DE_outliers$trended.dispersion)
 ```
 
 Outlier vs everyone else
 ```{r}
-lrt <- glmLRT(fit, coef = "OutlierStatusTRUE")
-topTags(lrt)
+lrt_outliers <- glmLRT(fit_outliers, coef = "OutlierStatusTRUE")
+topTags(lrt_outliers)
+write.table(rownames(lrt_outliers)[which(lrt_outliers$table$PValue<0.005)], file="temp.xls", sep="\t")
+#de_mean_values2 = mean_values[rownames(mean_values) %in%  rownames(lrt_outliers)[which(lrt_outliers$table$PValue<0.01)] ,]
+
+de_fpkm_values2 = results[which(results$ensembl_gene_id %in% rownames(lrt_outliers)[which(lrt_outliers$table$PValue<0.05)]), grep ("_fpkm", colnames(results))]
+pheatmap(de_fpkm_values2,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         #, clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+        , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         #, annotation = annotation
+         , fontsize_row=3.5)
+
 ```
 
 ```{r}
