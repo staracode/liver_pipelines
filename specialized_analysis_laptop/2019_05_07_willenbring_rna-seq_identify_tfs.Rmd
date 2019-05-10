@@ -1,0 +1,195 @@
+---
+Title: "Willenbring RNA-seq to identify TFs"
+author: "Tara Friedrich"
+date: "5/7/2019"
+output: html_document
+---
+
+```{r }
+library(pheatmap)
+library(edgeR)
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+library(topGO)
+require(plyr)
+library(GOplot)
+library("org.Hs.eg.db")
+sessionInfo()
+```
+
+Read in files with read counts.  
+```{r}
+filename1 = "~/Downloads/readcounts_GSE108315.txt"
+filename2 = "~/Downloads/readcounts_GSE55552.txt"
+counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
+counts2 = read.table(filename2, header = T, stringsAsFactors = F)
+```
+
+Remove metadata (Gene, coordinates, etc)
+```{r}
+counts_matrix = data.frame(counts1[,grep ("bam", colnames(counts1))], counts2[,grep ("bam", colnames(counts2))])
+colnames(counts_matrix) = sub("GSE55552..algn.GSE55552_sra_", "", sub(".sra_algn_Aligned.sortedByCoord.out.bam", "", sub("GSE108315..algn.GSE108315_sra_", "", colnames(counts_matrix))))
+rownames(counts_matrix) = counts1$Geneid
+
+#rename columns/sample to reflect useful labels 
+key = read.table("~/Downloads/key_SRR_to_name.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+head(key)
+
+renamesample=list()
+studyOrder=list()
+groupOrder=list()
+for (x in 1:nrow(key)){
+  oldname = key$Accession_Code[x]
+  newname = key$Name[x]
+  renamesample[oldname] = newname
+  studyOrder[newname] = key$Study[x]
+  groupOrder[newname] = key$Group[x]
+}
+
+colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
+StudyStatus = unlist(lapply (colnames(counts_matrix), function(x) studyOrder[[x]]))
+GroupStatus = unlist(lapply (colnames(counts_matrix), function(x) groupOrder[[x]]))
+#shorten column names
+colnames(counts_matrix) = sub("Donor-derived ducts ", "", sub("Host-derived ducts ", "", sub("Hepatocyte ", "", colnames(counts_matrix))))
+SampleID = colnames(counts_matrix)
+```
+Filter out genes that are too highly expressed or lowly expressed. Highly expressed genes are usually mitochondrial. 
+```{r}
+length(rowMeans(counts_matrix) < 5000 )
+dim(counts_matrix)
+length(which(rowMeans(counts_matrix) > 5000 ))
+keep = rowMeans(counts_matrix) > 5 
+counts_matrix_filtered = counts_matrix[keep,]
+```
+Take the RPKM.
+```{r}
+y <- DGEList(counts=counts_matrix_filtered)
+fpkm_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = FALSE)
+```
+Dendrogram showing relationships using fpkm. 
+```{r}
+par(cex=.5,font=2)
+hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
+par(mar=c(.2,.2,.2,.2), pty='s')
+plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
+```
+
+
+log transformation for PCA plot 
+```{r}
+cold <- data.frame("GroupStatus"=GroupStatus, "StudyStatus"=StudyStatus) 
+rownames(cold) = colnames(counts_matrix_filtered)
+cold
+
+ddsMat <- DESeq2::DESeqDataSetFromMatrix(countData=counts_matrix_filtered, colData=cold, design=~GroupStatus );
+colnames(ddsMat) <- colnames(counts_matrix_filtered)
+rld <- DESeq2::rlog(ddsMat) # LOG TRANSFORMED.
+```
+
+run PCA to explore structure in the data in lower dimensions.  
+```{r}
+par(mfrow=c(2,1))
+pca <- prcomp(t(assay(rld)))
+```
+
+
+Plot PC1 against PC2 using variance stabilizing transformation. 
+
+```{r}
+d <- data.frame(pca$x, group=GroupStatus, SampleID, StudyStatus,  name=colnames(rld)) # returns PC1, PC2, ... PC8... etc
+ppp <- ggplot(d, aes_string(x="PC1", y="PC2",shape="GroupStatus", color="StudyStatus"))
+ppp <- ppp + geom_point(size=3) + geom_text(aes(label=SampleID), nudge_y=6)
+plot(ppp)
+```  
+
+```{r}
+HEATMAP_HEIGHT <- 45 # inchescol
+HEATMAP_WIDTH  <- 15
+annotation <- data.frame(
+  StudyStatus= StudyStatus, GroupStatus=GroupStatus)
+rownames(annotation) <- colnames(fpkm_matrix)
+pheatmap(fpkm_matrix,
+         , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
+         , scale="row"  # actually scale each row
+         , clustering_distance_rows="correlation" # or: euclidean
+         , clustering_distance_cols="correlation"
+         , clustering_method="complete"
+         , display_numbers=FALSE
+         , border_color="#00000000" # note: the last two digits here are the alpha channel/ transparency
+         , show_rownames=FALSE, show_colnames = TRUE
+         , annotation = annotation
+         , fontsize_row=3.5)
+```
+
+Fit the model and estimate dispersion value. Baseline is PBMC.  
+```{r}
+design_matrix <- model.matrix( ~ GroupStatus + StudyStatus  )
+colnames(design_matrix)
+design_matrix
+y_for_DE <- DGEList(counts=counts_matrix_filtered)
+y_for_DE <- calcNormFactors(y_for_DE)
+y_for_DE = estimateDisp(y_for_DE, design=design_matrix) 
+plotBCV(y_for_DE)
+fit <- glmFit(y_for_DE, design=design_matrix, dispersion=y_for_DE$trended.dispersion)
+```
+
+
+```{r}
+GroupStatus1 = relevel (factor(GroupStatus[which(StudyStatus==0)]), ref="C")
+design_matrix1 <- model.matrix( ~GroupStatus1 )
+colnames(design_matrix1)
+design_matrix1
+counts_matrix_filtered1 = counts_matrix_filtered[,colnames(counts_matrix_filtered)[which(StudyStatus==0)]]
+
+
+y_for_DE1 <- DGEList(counts=counts_matrix_filtered1)
+y_for_DE1 <- calcNormFactors(y_for_DE1)
+y_for_DE1 = estimateDisp(y_for_DE1, design=design_matrix1) 
+plotBCV(y_for_DE1)
+fit1 <- glmFit(y_for_DE1, design=design_matrix1, dispersion=y_for_DE1$trended.dispersion)
+```
+
+```{r}
+lrt1 <- glmLRT(fit1, coef = "GroupStatus1A")
+topTags(lrt1)
+smoothScatter(x=lrt1$table$logFC, y=-log10(lrt1$table$PValue))
+lrt2 <- glmLRT(fit1, coef = "GroupStatus1B")
+topTags(lrt2)
+smoothScatter(x=lrt2$table$logFC, y=-log10(lrt2$table$PValue))
+```
+
+Histogram should skew left.  
+```{r}
+lrt_table1 = data.frame(lrt1$table, p.adjust(lrt1$table$PValue, method = "BH"))
+colnames(lrt_table1) = c(colnames(lrt1$table), "adjPVal_BH")
+hist(lrt_table1$PValue, main="distribution of p-values") 
+lrt_table2 = data.frame(lrt2$table, p.adjust(lrt2$table$PValue, method = "BH"))
+colnames(lrt_table2) = c(colnames(lrt2$table), "adjPVal_BH")
+hist(lrt_table2$PValue, main="distribution of p-values") 
+```
+
+Format output into excel sheet. 
+```{r}
+fpkm_matrix1 = fpkm_matrix[,colnames(counts_matrix_filtered)[which(StudyStatus==0)]]
+
+genes = rownames(counts_matrix_filtered1)
+ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl",host="www.ensembl.org")
+#head(listAttributes(ensembl), 30)
+hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','external_gene_name','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
+
+index = match (genes, hgnc_swissprot$ensembl_gene_id)
+results = data.frame(hgnc_swissprot[index,], counts_matrix_filtered1, fpkm_matrix1, lrt_table1,lrt_table2)
+colnames(results) = c(
+                    colnames(hgnc_swissprot[index,])
+                  , unlist(lapply (colnames(counts_matrix_filtered1), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_matrix1), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_table1), function(x) paste(x, "_A_vs_C_baseline", sep="_")))
+                  , unlist(lapply (colnames(lrt_table2), function(x) paste(x, "_B_vs_C_baseline", sep="_")))
+                  )
+curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
+write.table(results, paste0("~/Downloads/willenbring_", "study1", "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+
+```
+
+

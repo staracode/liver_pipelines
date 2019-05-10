@@ -19,8 +19,10 @@ FILE1=$2
 
 files=`cut -d , -f 9 ${FILE1}` 
 
-for fastq in $files; do 
-	if [[ $fastq == *"SR"* ]]; then
-		echo "LiverCenter/software_source/sratoolkit.2.9.6-centos_linux64/bin/fastq-dump " $fastq " --outdir ${DIR_NAME}/fastq/ --outdir fastq --gzip --skip-technical  --readids --read-filter pass --dumpbase --split-3 --clip SRR_ID "  
+#for accession in $files; do 
+for accession in `ls ${DIR_NAME}/sra/`; do 
+	if [[ $accession == *"SR"* ]]; then
+		#echo "LiverCenter/software_source/sratoolkit.2.9.6-centos_linux64/bin/fastq-dump " $fastq " --outdir ${DIR_NAME}/fastq/ --outdir fastq --gzip --skip-technical  --readids --read-filter pass --dumpbase --split-3 --clip SRR_ID "  
+		echo "LiverCenter/software_source/sratoolkit.2.9.6-centos_linux64/bin/fastq-dump -A ${DIR_NAME}/sra/${accession}  --outdir ${DIR_NAME}/fastq/ --gzip --skip-technical  --readids  --dumpbase --split-3  " |sh 
 	fi
 done
