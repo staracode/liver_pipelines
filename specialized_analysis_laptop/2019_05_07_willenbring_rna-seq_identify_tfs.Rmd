@@ -20,8 +20,8 @@ sessionInfo()
 
 Read in files with read counts.  
 ```{r}
-filename1 = "~/Downloads/readcounts_GSE108315.txt"
-filename2 = "~/Downloads/readcounts_GSE55552.txt"
+filename1 = "~/Box Sync/2019_05_02_Willenbring_rnaseq_tf_cholangiocyte_hepatocyte/readcounts_GSE108315.txt"
+filename2 = "~/Box Sync/2019_05_02_Willenbring_rnaseq_tf_cholangiocyte_hepatocyte/readcounts_GSE55552.txt"
 counts1 = read.table(filename1, header = T, stringsAsFactors = F) 
 counts2 = read.table(filename2, header = T, stringsAsFactors = F)
 ```
@@ -33,7 +33,7 @@ colnames(counts_matrix) = sub("GSE55552..algn.GSE55552_sra_", "", sub(".sra_algn
 rownames(counts_matrix) = counts1$Geneid
 
 #rename columns/sample to reflect useful labels 
-key = read.table("~/Downloads/key_SRR_to_name.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key = read.table("~/Box Sync/2019_05_02_Willenbring_rnaseq_tf_cholangiocyte_hepatocyte/key_SRR_to_name.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key)
 
 renamesample=list()
@@ -48,8 +48,8 @@ for (x in 1:nrow(key)){
 }
 
 colnames(counts_matrix) = unlist(lapply (colnames(counts_matrix), function(x) renamesample[[x]]))
-StudyStatus = unlist(lapply (colnames(counts_matrix), function(x) studyOrder[[x]]))
-GroupStatus = unlist(lapply (colnames(counts_matrix), function(x) groupOrder[[x]]))
+StudyStatus = factor(unlist(lapply (colnames(counts_matrix), function(x) studyOrder[[x]])))
+GroupStatus = factor(unlist(lapply (colnames(counts_matrix), function(x) groupOrder[[x]])))
 #shorten column names
 colnames(counts_matrix) = sub("Donor-derived ducts ", "", sub("Host-derived ducts ", "", sub("Hepatocyte ", "", colnames(counts_matrix))))
 SampleID = colnames(counts_matrix)
@@ -70,7 +70,7 @@ fpkm_matrix = rpkm (y, gene.length=counts1[keep,"Length"], log = FALSE)
 Dendrogram showing relationships using fpkm. 
 ```{r}
 par(cex=.5,font=2)
-hc2 <- hclust(stats::dist(t(fpkm_matrix), method="minkowski"), "ward.D2")
+hc2 <- hclust(stats::dist(t(fpkm_matrix), method="euclidean"), "ward.D2")
 par(mar=c(.2,.2,.2,.2), pty='s')
 plot(hc2, lwd=4, lty=1, col="black", col.lab="red", xlab="Samples", main="Samples clustered by FPKM using Ward's clustering & Euclidean distance")
 ```
@@ -134,7 +134,7 @@ plotBCV(y_for_DE)
 fit <- glmFit(y_for_DE, design=design_matrix, dispersion=y_for_DE$trended.dispersion)
 ```
 
-
+GSE108315 and GSE55552 separated 
 ```{r}
 GroupStatus1 = relevel (factor(GroupStatus[which(StudyStatus==0)]), ref="C")
 design_matrix1 <- model.matrix( ~GroupStatus1 )
@@ -142,36 +142,98 @@ colnames(design_matrix1)
 design_matrix1
 counts_matrix_filtered1 = counts_matrix_filtered[,colnames(counts_matrix_filtered)[which(StudyStatus==0)]]
 
-
 y_for_DE1 <- DGEList(counts=counts_matrix_filtered1)
 y_for_DE1 <- calcNormFactors(y_for_DE1)
 y_for_DE1 = estimateDisp(y_for_DE1, design=design_matrix1) 
 plotBCV(y_for_DE1)
 fit1 <- glmFit(y_for_DE1, design=design_matrix1, dispersion=y_for_DE1$trended.dispersion)
+
+
+GroupStatus2 = relevel (factor(GroupStatus[which(StudyStatus==1)]), ref="C")
+design_matrix2 <- model.matrix( ~GroupStatus2 )
+colnames(design_matrix2)
+design_matrix2
+counts_matrix_filtered2 = counts_matrix_filtered[,colnames(counts_matrix_filtered)[which(StudyStatus==1)]]
+
+y_for_DE2 <- DGEList(counts=counts_matrix_filtered2)
+y_for_DE2 <- calcNormFactors(y_for_DE2)
+y_for_DE2 = estimateDisp(y_for_DE2, design=design_matrix2) 
+plotBCV(y_for_DE2)
+fit2 <- glmFit(y_for_DE2, design=design_matrix2, dispersion=y_for_DE2$trended.dispersion)
+
 ```
 
 ```{r}
-lrt1 <- glmLRT(fit1, coef = "GroupStatus1A")
-topTags(lrt1)
-smoothScatter(x=lrt1$table$logFC, y=-log10(lrt1$table$PValue))
-lrt2 <- glmLRT(fit1, coef = "GroupStatus1B")
-topTags(lrt2)
-smoothScatter(x=lrt2$table$logFC, y=-log10(lrt2$table$PValue))
+lrt1A <- glmLRT(fit1, coef = "GroupStatus1A")
+topTags(lrt1A)
+smoothScatter(x=lrt1A$table$logFC, y=-log10(lrt1A$table$PValue))
+lrt1B <- glmLRT(fit1, coef = "GroupStatus1B")
+topTags(lrt1B)
+smoothScatter(x=lrt1B$table$logFC, y=-log10(lrt1B$table$PValue))
+
+lrt2A <- glmLRT(fit2, coef = "GroupStatus2A")
+topTags(lrt2A)
+smoothScatter(x=lrt2A$table$logFC, y=-log10(lrt2A$table$PValue))
+lrt2B <- glmLRT(fit2, coef = "GroupStatus2B")
+topTags(lrt2B)
+smoothScatter(x=lrt2B$table$logFC, y=-log10(lrt2B$table$PValue))
+
 ```
 
 Histogram should skew left.  
 ```{r}
-lrt_table1 = data.frame(lrt1$table, p.adjust(lrt1$table$PValue, method = "BH"))
-colnames(lrt_table1) = c(colnames(lrt1$table), "adjPVal_BH")
-hist(lrt_table1$PValue, main="distribution of p-values") 
-lrt_table2 = data.frame(lrt2$table, p.adjust(lrt2$table$PValue, method = "BH"))
-colnames(lrt_table2) = c(colnames(lrt2$table), "adjPVal_BH")
-hist(lrt_table2$PValue, main="distribution of p-values") 
+lrt_table1A = data.frame(lrt1A$table, p.adjust(lrt1A$table$PValue, method = "BH"))
+colnames(lrt_table1A) = c(colnames(lrt1A$table), "adjPVal_BH")
+hist(lrt_table1A$PValue, main="distribution of p-values") 
+
+lrt_table1B = data.frame(lrt1B$table, p.adjust(lrt1B$table$PValue, method = "BH"))
+colnames(lrt_table1B) = c(colnames(lrt1B$table), "adjPVal_BH")
+hist(lrt_table1B$PValue, main="distribution of p-values") 
+
+lrt_table2A = data.frame(lrt2A$table, p.adjust(lrt2A$table$PValue, method = "BH"))
+colnames(lrt_table2A) = c(colnames(lrt2A$table), "adjPVal_BH")
+hist(lrt_table2A$PValue, main="distribution of p-values") 
+
+lrt_table2B = data.frame(lrt2B$table, p.adjust(lrt2B$table$PValue, method = "BH"))
+colnames(lrt_table2B) = c(colnames(lrt2B$table), "adjPVal_BH")
+hist(lrt_table2B$PValue, main="distribution of p-values") 
+
 ```
+
+
+
+```{r}
+genes = rownames(counts_matrix_filtered1)
+ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl",host="www.ensembl.org")
+tf = read.table("~/Box Sync/2019_01_10_holger_compare_tf/all_tf.txt", sep="\t")
+get_ensembl_tf <- getBM(attributes=c('ensembl_gene_id','external_gene_name','description'), filters = 'external_gene_name',  values = tf$V1 , mart = ensembl)
+which_genes_are_tf = match (genes, get_ensembl_tf$ensembl_gene_id)
+
+length(which(!is.na(which_genes_are_tf)))
+
+jaspar = read.table("~/Box Sync/2019_01_10_holger_compare_tf/all_tf_jaspar_non_redundant.txt", sep="\t")
+get_ensembl_jaspar <- getBM(attributes=c('ensembl_gene_id','external_gene_name','description'),filters = 'external_gene_name',  values = jaspar$V1 , mart = ensembl)
+which_genes_are_jaspar = match (genes, get_ensembl_jaspar$ensembl_gene_id)
+
+length(which(!is.na(which_genes_are_jaspar)))
+
+dbd = read.table("~/Box Sync/2019_01_10_holger_compare_tf/hs.tf.ass", sep="\t")
+ensembl_hg = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl",host="www.ensembl.org")
+get_ensembl_dbd <- getBM(attributes=c('ensembl_gene_id','external_gene_name','description', 'ensembl_peptide_id'),filters = 'ensembl_peptide_id',  values = dbd$V2 , mart = ensembl_hg)
+which_genes_are_dbd = match (genes, get_ensembl_dbd$ensembl_gene_id)
+length(which(!is.na(which_genes_are_dbd)))
+
+tf_ensembl = get_ensembl_tf[which_genes_are_tf,"ensembl_gene_id"][which(!is.na(get_ensembl_tf[which_genes_are_tf,"ensembl_gene_id"]))]
+jaspar_ensembl = get_ensembl_tf[which_genes_are_jaspar,"ensembl_gene_id"][which(!is.na(get_ensembl_jaspar[which_genes_are_jaspar,"ensembl_gene_id"]))]
+
+```
+
+
 
 Format output into excel sheet. 
 ```{r}
 fpkm_matrix1 = fpkm_matrix[,colnames(counts_matrix_filtered)[which(StudyStatus==0)]]
+fpkm_matrix2 = fpkm_matrix[,colnames(counts_matrix_filtered)[which(StudyStatus==1)]]
 
 genes = rownames(counts_matrix_filtered1)
 ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl",host="www.ensembl.org")
@@ -179,16 +241,31 @@ ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl",host="w
 hgnc_swissprot <- getBM(attributes=c('ensembl_gene_id','external_gene_name','description'),filters = 'ensembl_gene_id',  values = genes , mart = ensembl)
 
 index = match (genes, hgnc_swissprot$ensembl_gene_id)
-results = data.frame(hgnc_swissprot[index,], counts_matrix_filtered1, fpkm_matrix1, lrt_table1,lrt_table2)
-colnames(results) = c(
+results1 = data.frame(hgnc_swissprot[index,], counts_matrix_filtered1, fpkm_matrix1, lrt_table1A,lrt_table1B, hgnc_swissprot[index,"ensembl_gene_id"] %in% tf_ensembl, hgnc_swissprot[index,"ensembl_gene_id"] %in% jaspar_ensembl)
+colnames(results1) = c(
                     colnames(hgnc_swissprot[index,])
                   , unlist(lapply (colnames(counts_matrix_filtered1), function(x) paste(x, "counts", sep="_")))
                   , unlist(lapply (colnames(fpkm_matrix1), function(x) paste(x, "fpkm", sep="_")))
-                  , unlist(lapply (colnames(lrt_table1), function(x) paste(x, "_A_vs_C_baseline", sep="_")))
-                  , unlist(lapply (colnames(lrt_table2), function(x) paste(x, "_B_vs_C_baseline", sep="_")))
+                  , unlist(lapply (colnames(lrt_table1A), function(x) paste(x, "_mT_vs_DDC_baseline", sep="_")))
+                  , unlist(lapply (colnames(lrt_table1B), function(x) paste(x, "_neg_vs_DDC_baseline", sep="_")))
+                  ,"in_TRANSFAC_2016"
+                  , "in_JASPAR_2018"
                   )
 curr_date = format(Sys.time(), "%a_%b_%d_%H_hrs_%M_min_%S_sec_%Y")
-write.table(results, paste0("~/Downloads/willenbring_", "study1", "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered), col.names=NA, sep="\t")
+write.table(results1, paste0("~/Box Sync/2019_05_02_Willenbring_rnaseq_tf_cholangiocyte_hepatocyte/willenbring_", "GSE108315", "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered1), col.names=NA, sep="\t")
+
+results2 = data.frame(hgnc_swissprot[index,], counts_matrix_filtered2, fpkm_matrix2, lrt_table2A,lrt_table2B,hgnc_swissprot[index,"ensembl_gene_id"] %in% tf_ensembl, hgnc_swissprot[index,"ensembl_gene_id"] %in% jaspar_ensembl)
+colnames(results2) = c(
+                    colnames(hgnc_swissprot[index,])
+                  , unlist(lapply (colnames(counts_matrix_filtered2), function(x) paste(x, "counts", sep="_")))
+                  , unlist(lapply (colnames(fpkm_matrix2), function(x) paste(x, "fpkm", sep="_")))
+                  , unlist(lapply (colnames(lrt_table2A), function(x) paste(x, "_HpC_vs_H_baseline", sep="_")))
+                  , unlist(lapply (colnames(lrt_table2B), function(x) paste(x, "_pC_vs_H_baseline", sep="_")))
+                  , "in_TRANSFAC_2016"
+                  , "in_JASPAR_2018"
+                  )
+
+write.table(results2, paste0("~/Box Sync/2019_05_02_Willenbring_rnaseq_tf_cholangiocyte_hepatocyte/willenbring_", "GSE55552", "_de_", curr_date, ".xls"), row.names=rownames(counts_matrix_filtered2), col.names=NA, sep="\t")
 
 ```
 
