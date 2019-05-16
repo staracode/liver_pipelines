@@ -247,6 +247,31 @@ pheatmap(de_mean_values,
          , fontsize_row=3.5)
 ```
 
+
+```{r qPCR comparison}
+genes = c("ENSG00000140450", "ENSG00000111704")
+gapdh_genes = results[grep ("GAPDH", results$hgnc_symbol ), c("ensembl_gene_id")]
+results[grep ("GAPDH", results$hgnc_symbol ), c("hgnc_symbol")]
+qPCR_table = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/qPCR_CT.txt", header=T, fill=T)
+#calculate mean for each sample
+qPCR_table2 = qPCR_table %>%
+  group_by(Sample) %>%
+  summarize(mean_GAPDH = mean(GAPDH, na.rm = TRUE))
+
+gapdh_fpkm = fpkm_matrix[which(rownames(fpkm_matrix)%in% gapdh_genes),]
+colnames(gapdh_fpkm) =matrix(unlist(strsplit(colnames(gapdh_fpkm), "_")), nc=3, byrow=T)[,2]
+colnames(gapdh_fpkm)== qPCR_table2$Sample[matchrow]
+matchrow = match(colnames(gapdh_fpkm), qPCR_table2$Sample)
+test=cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"])
+pheatmap(test,scale="row")
+#match with fpkm values
+
+#covert to DeltaCt
+
+# plot correlation
+
+```
+
 Differentially expressed genes `r length(which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05))`. 
 ```{r}
 de_fpkm_values = results[which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05), grep ("_fpkm", colnames(results))]
