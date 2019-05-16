@@ -253,22 +253,21 @@ genes = c("ENSG00000140450", "ENSG00000111704")
 gapdh_genes = results[grep ("GAPDH", results$hgnc_symbol ), c("ensembl_gene_id")]
 results[grep ("GAPDH", results$hgnc_symbol ), c("hgnc_symbol")]
 qPCR_table = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/qPCR_CT.txt", header=T, fill=T)
+qPCR_table=qPCR_table[which(qPCR_table$Celltype=="iHEPS"),]
 #calculate mean for each sample
 qPCR_table2 = qPCR_table %>%
   group_by(Sample) %>%
   summarize(mean_GAPDH = mean(GAPDH, na.rm = TRUE))
 
+#mean CT values with FPKM values
 gapdh_fpkm = fpkm_matrix[which(rownames(fpkm_matrix)%in% gapdh_genes),]
 colnames(gapdh_fpkm) =matrix(unlist(strsplit(colnames(gapdh_fpkm), "_")), nc=3, byrow=T)[,2]
 colnames(gapdh_fpkm)== qPCR_table2$Sample[matchrow]
 matchrow = match(colnames(gapdh_fpkm), qPCR_table2$Sample)
-test=cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"])
-pheatmap(test,scale="row")
-#match with fpkm values
+pheatmap(cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"]),scale="column")
 
-#covert to DeltaCt
 
-# plot correlation
+
 
 ```
 
