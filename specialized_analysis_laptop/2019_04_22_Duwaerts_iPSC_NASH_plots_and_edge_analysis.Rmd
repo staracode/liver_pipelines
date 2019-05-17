@@ -21,7 +21,7 @@ sessionInfo()
 
 Read in files with read counts.  
 ```{r}
-filename2 = "~/Downloads/readcounts_iPSC.txt"
+filename2 = "~/Downloads/2019_04_25_Duwaerts_analysis_plots/readcounts_iPSC.txt"
 counts = read.table(filename2, header = T, stringsAsFactors = F) 
 ```
 
@@ -32,7 +32,7 @@ colnames(counts_matrix) = matrix(unlist(strsplit(colnames(counts_matrix), "algn.
 rownames(counts_matrix) = counts$Geneid
 
 #rename columns/sample to reflect useful labels 
-key = read.table("~/Downloads/metadata_Duwaerts_iPSC.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
+key = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/metadata_Duwaerts_iPSC.txt", header = T, stringsAsFactors = F, fill=T, sep="\t")
 head(key)
 
 

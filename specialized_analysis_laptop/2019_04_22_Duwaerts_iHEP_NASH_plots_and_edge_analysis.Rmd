@@ -249,7 +249,7 @@ pheatmap(de_mean_values,
 
 
 ```{r qPCR comparison}
-genes = c("ENSG00000140450", "ENSG00000111704")
+
 gapdh_genes = results[grep ("GAPDH", results$hgnc_symbol ), c("ensembl_gene_id")]
 results[grep ("GAPDH", results$hgnc_symbol ), c("hgnc_symbol")]
 qPCR_table = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/qPCR_CT.txt", header=T, fill=T)
@@ -267,6 +267,15 @@ matchrow = match(colnames(gapdh_fpkm), qPCR_table2$Sample)
 pheatmap(cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"]),scale="column")
 
 
+
+#genes_qpcr = c("TRAF1", "CARD14", "ARRDC4", "NANOG", "NNMT") 
+genes_qpcr = c("TRAF1", "CARD14", "ARRDC4") 
+ensembl_qpcr = results[which(results$hgnc_symbol %in% genes_qpcr) ,"ensembl_gene_id"]
+#genes = c("ENSG00000140450", "ENSG00000111704")
+
+qPCR_table3 = qPCR_table[, c("Sample", genes_qpcr)]%>%
+    group_by(Sample)  %>% dmap(mean)
+#%>% summarise_all(funs(mean))
 
 
 ```
