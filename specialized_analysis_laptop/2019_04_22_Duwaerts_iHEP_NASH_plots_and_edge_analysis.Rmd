@@ -15,6 +15,7 @@ library(topGO)
 require(plyr)
 library(GOplot)
 library("org.Hs.eg.db")
+library(dplyr)
 sessionInfo()
 ```
 
@@ -262,20 +263,26 @@ qPCR_table2 = qPCR_table %>%
 #mean CT values with FPKM values
 gapdh_fpkm = fpkm_matrix[which(rownames(fpkm_matrix)%in% gapdh_genes),]
 colnames(gapdh_fpkm) =matrix(unlist(strsplit(colnames(gapdh_fpkm), "_")), nc=3, byrow=T)[,2]
-colnames(gapdh_fpkm)== qPCR_table2$Sample[matchrow]
+
 matchrow = match(colnames(gapdh_fpkm), qPCR_table2$Sample)
+colnames(gapdh_fpkm)== qPCR_table2$Sample[matchrow]
 pheatmap(cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"]),scale="column")
 
-
-
-#genes_qpcr = c("TRAF1", "CARD14", "ARRDC4", "NANOG", "NNMT") 
+#genes_qpcr = c("TRAF1", "CARD14", "ARRDC4", "NANOG", "NNMT") #fix last two genes in spreadsheet
 genes_qpcr = c("TRAF1", "CARD14", "ARRDC4") 
 ensembl_qpcr = results[which(results$hgnc_symbol %in% genes_qpcr) ,"ensembl_gene_id"]
-#genes = c("ENSG00000140450", "ENSG00000111704")
 
+
+qpcr_fpkm = fpkm_matrix[which(rownames(fpkm_matrix)%in% ensembl_qpcr),]
+colnames(qpcr_fpkm) =matrix(unlist(strsplit(colnames(qpcr_fpkm), "_")), nc=3, byrow=T)[,2]
+
+library("purrrlyr")
 qPCR_table3 = qPCR_table[, c("Sample", genes_qpcr)]%>%
     group_by(Sample)  %>% dmap(mean)
 #%>% summarise_all(funs(mean))
+matchrow = match(colnames(qpcr_fpkm), qPCR_table3$Sample)
+colnames(qpcr_fpkm)== qPCR_table3$Sample[matchrow]
+pheatmap(cbind( t(qpcr_fpkm), qPCR_table3[matchrow, "ARRDC4"]),scale="column")
 
 
 ```
