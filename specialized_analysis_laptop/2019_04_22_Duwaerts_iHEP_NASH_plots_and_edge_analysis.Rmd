@@ -50,10 +50,12 @@ colnames(counts_matrix) = sub ("NASH \\(STEATOSIS\\)", "NASH", colnames(counts_m
 ```
 Filter out genes that are too highly expressed or lowly expressed. Highly expressed genes are usually mitochondrial. 
 ```{r}
-length(rowMeans(counts_matrix) < 5000 )
+length(which(rowMeans(counts_matrix) < 5000 ))
 dim(counts_matrix)
-keep = rowMeans(counts_matrix) > 5 & rowMeans(counts_matrix) < 5000 
+keep = rowMeans(counts_matrix) > 5 
 counts_matrix_filtered = counts_matrix[keep,]
+#gapdh
+mean(counts_matrix[grep ("ENSG00000111640", rownames(counts_matrix)),])
 ```
 Take the RPKM.
 ```{r}
@@ -109,7 +111,7 @@ HEATMAP_WIDTH  <- 15
 annotation <- data.frame(
   SampleID= SampleID, DiseaseStatus=DiseaseStatus)
 rownames(annotation) <- colnames(fpkm_matrix)
-pheatmap(fpkm_matrix,
+pheatmap(fpkm_matrix
          , width=HEATMAP_WIDTH, height=HEATMAP_HEIGHT
          , scale="row"  # actually scale each row
          , clustering_distance_rows="correlation" # or: euclidean
@@ -253,7 +255,7 @@ pheatmap(de_mean_values,
 
 gapdh_genes = results[grep ("GAPDH", results$hgnc_symbol ), c("ensembl_gene_id")]
 results[grep ("GAPDH", results$hgnc_symbol ), c("hgnc_symbol")]
-qPCR_table = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/qPCR_CT.txt", header=T, fill=T)
+qPCR_table = read.table("~/Downloads/2019_04_25_Duwaerts_analysis_plots/qPCR_CT_copy.txt", header=T, fill=T)
 qPCR_table=qPCR_table[which(qPCR_table$Celltype=="iHEPS"),]
 #calculate mean for each sample
 qPCR_table2 = qPCR_table %>%
@@ -266,25 +268,28 @@ colnames(gapdh_fpkm) =matrix(unlist(strsplit(colnames(gapdh_fpkm), "_")), nc=3, 
 
 matchrow = match(colnames(gapdh_fpkm), qPCR_table2$Sample)
 colnames(gapdh_fpkm)== qPCR_table2$Sample[matchrow]
-pheatmap(cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"]),scale="column")
+
+annotation <- data.frame( DiseaseStatus=DiseaseStatus)
+rownames(annotation) <- matrix(unlist(strsplit(colnames(fpkm_matrix), "_")), nc=3, byrow=T)[,2]
+pheatmap(t(cbind( t(gapdh_fpkm), qPCR_table2[matchrow, "mean_GAPDH"])) ,scale="row", annotation=annotation)
+
+pheatmap(t(cbind( t(gapdh_fpkm))) , annotation=annotation)
 
 #genes_qpcr = c("TRAF1", "CARD14", "ARRDC4", "NANOG", "NNMT") #fix last two genes in spreadsheet
-genes_qpcr = c("TRAF1", "CARD14", "ARRDC4") 
+genes_qpcr = c("TRAF1",  "ARRDC4", "CARD14", "GAPDH", "NANOG")
 ensembl_qpcr = results[which(results$hgnc_symbol %in% genes_qpcr) ,"ensembl_gene_id"]
-
 
 qpcr_fpkm = fpkm_matrix[which(rownames(fpkm_matrix)%in% ensembl_qpcr),]
 colnames(qpcr_fpkm) =matrix(unlist(strsplit(colnames(qpcr_fpkm), "_")), nc=3, byrow=T)[,2]
 
 library("purrrlyr")
-qPCR_table3 = qPCR_table[, c("Sample", genes_qpcr)]%>%
-    group_by(Sample)  %>% dmap(mean)
-#%>% summarise_all(funs(mean))
+qPCR_table3 = qPCR_table %>%
+  group_by(Sample)  %>% dmap(mean)
+
 matchrow = match(colnames(qpcr_fpkm), qPCR_table3$Sample)
 colnames(qpcr_fpkm)== qPCR_table3$Sample[matchrow]
-pheatmap(cbind( t(qpcr_fpkm), qPCR_table3[matchrow, "ARRDC4"]),scale="column")
-
-
+pheatmap(t(cbind( t(qpcr_fpkm), qPCR_table3[matchrow, genes_qpcr])), scale="row", annotation=annotation)
+pheatmap(t(cbind( t(qpcr_fpkm), qPCR_table3[matchrow, genes_qpcr])), annotation=annotation)
 ```
 
 Differentially expressed genes `r length(which(results[,"adjPVal_BH__NASH_vs_CONTROL_baseline"] <=0.05))`. 
