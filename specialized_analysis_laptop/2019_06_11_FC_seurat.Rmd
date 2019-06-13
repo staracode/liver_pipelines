@@ -1,0 +1,141 @@
+---
+title: "FC_reanalysis"
+author: "Tara Friedrich"
+date: "6/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(Seurat)
+cellsdata = Read10X("/Users/tfriedrich/Downloads/FC_102418_with_markers/outs/filtered_feature_bc_matrix/")
+cells = CreateSeuratObject(counts = cellsdata, project = "FC", min.cells = 3, min.features = 200)
+
+summary(cellsdata["EGFP.dna",])
+summary(cellsdata["lacZ.dna",])
+summary(cellsdata["mCerulean.dna",])
+summary(cellsdata["mCherry.dna",])
+summary(cellsdata["mOrange.dna",])
+summary(cellsdata["tdrfp.dna",])
+
+length(which(cellsdata["EGFP.dna",]>0))
+length(which(cellsdata["lacZ.dna",]>0))
+length(which(cellsdata["mCerulean.dna",]>0))
+length(which(cellsdata["mCherry.dna",]>0))
+length(which(cellsdata["mOrange.dna",]>0))
+length(which(cellsdata["tdrfp.dna",]>0))
+
+length(which(cellsdata["EGFP.dna",]>0))
+length(which(cellsdata["lacZ.dna",]>0))
+length(which(cellsdata["mCerulean.dna",]>0))
+length(which(cellsdata["mCherry.dna",]>0))
+length(which(cellsdata["mOrange.dna",]>0))
+length(which(cellsdata["tdrfp.dna",]>0))
+
+A = subset(subset(cells, lacZ.dna>0) ,Xist>0)
+B = subset(subset(cells, lacZ.dna==0) ,Xist>0)
+C = subset(subset(cells, tdrfp.dna>0) ,Xist=0)
+```
+
+```{r}
+# scRNA-seq QC metric.
+mito.genes <- grep(pattern = "^mt-", x = rownames(x = cells), value = TRUE)
+percent.mito <- Matrix::colSums(cells[mito.genes, ])/Matrix::colSums(cells)
+
+# AddMetaData adds columns to object@meta.data, and is a great place to
+# stash QC stats
+cells <- AddMetaData(object = cells, metadata = percent.mito, col.name = "percent.mito")
+VlnPlot(object = cells, features = c("nFeature_RNA", "nCount_RNA", "percent.mito"), nCol = 3)
+marker_genes = c("Hnf4a", "Alb", "Fah", "Krt8", "Krt18", "G6pc", "Sox9", "Krt7", "Krt19", "Epcam", "Onecut1", "Afp", "Xist")
+VlnPlot(A,c("Hnf4a", "Alb", "Fah"))
+VlnPlot(B,c("Hnf4a", "Alb", "Fah"))
+VlnPlot(C,c("Hnf4a", "Alb", "Fah"))
+```
+
+```{r}
+cells <- NormalizeData(object = cells, normalization.method = "LogNormalize", 
+    scale.factor = 10000)
+cells <- FindVariableFeatures(object = cells, selection.method = "vst", nfeatures = 2000)
+cells <- ScaleData(object = cells, vars.to.regress = c("nUMI", "percent.mito"))
+
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+
+#regress out cell cycle genes
+cells <- CellCycleScoring(object=cells, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+cells <- RunPCA(object = cells, pc.genes = cells@var.genes, do.print = TRUE, pcs.print = 1:5, genes.print = 5)
+```
+
+```{r}
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(cells), 10)
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(cells)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+CombinePlots(plots = list(plot1, plot2))
+
+ElbowPlot(cells)
+
+#cells <- FindClusters(object = cells, reduction.type = "pca", dims.use = 1:5, resolution = 0.6, print.output = 0, save.SNN = TRUE)
+#cells <- FindClusters(cells, resolution = 0.5)
+cells <- RunTSNE(object = cells, dims.use = 1:10, do.fast = TRUE)
+cells <- RunUMAP(cells, dims = 1:10)
+DimPlot(cells, reduction = "umap")
+
+FeaturePlot(cells, features = marker_genes)
+FeaturePlot(cells, features = c("EGFP.dna","lacZ.dna","mCerulean.dna","mCherry.dna","mCherry.dna","mOrange.dna","tdrfp.dna"))
+DimPlot(cells, reduction = "tsne", cols=factor(monocle_cds$cluster_ext_type),split.by = 'ident')
+
+library(garnett)
+library(monocle)
+cells.monocle <- importCDS(cells)
+
+#Extract data, phenotype data, and feature data from the SeuratObject
+#https://github.com/cole-trapnell-lab/monocle-release/issues/262
+data <- as(as.matrix(cells@assays$RNA@data), 'sparseMatrix')
+pd <- new('AnnotatedDataFrame', data = cells@meta.data)
+fData <- data.frame(gene_short_name = row.names(data), row.names = row.names(data))
+fd <- new('AnnotatedDataFrame', data = fData)
+monocle_cds <- newCellDataSet(data,
+                         phenoData = pd,
+                         featureData = fd,
+                         lowerDetectionLimit = 0.5,
+                         expressionFamily = negbinomial.size())
+
+# generate size factors for normalization later
+monocle_cds <- estimateSizeFactors(monocle_cds)
+
+library(org.Mm.eg.db)
+marker_file_path <-  "/Users/tfriedrich/Downloads/markers_garnett.txt"
+marker_check <- check_markers(monocle_cds, marker_file_path,
+                              db=org.Mm.eg.db,
+                              cds_gene_id_type = "SYMBOL",
+                              marker_file_gene_id_type = "SYMBOL")
+
+plot_markers(marker_check)
+set.seed(260)
+pbmc_classifier <- train_cell_classifier(cds = monocle_cds,
+                                         marker_file = marker_file_path,
+                                         db=org.Mm.eg.db,
+                                         cds_gene_id_type = "SYMBOL",
+                                         num_unknown = 50,
+                                         marker_file_gene_id_type = "SYMBOL")
+head(pData(monocle_cds))
+
+feature_genes <- get_feature_genes(pbmc_classifier,
+                                   node = "root",
+                                   db = org.Mm.eg.db)
+head(feature_genes)
+monocle_cds <- classify_cells(monocle_cds, pbmc_classifier,
+                           db = org.Mm.eg.db,
+                           cluster_extend = TRUE,
+                           cds_gene_id_type = "SYMBOL")
+head(pData(monocle_cds))
+
+library(ggplot2)
+
+qplot(tsne_1, tsne_2, color = cell_type, data = pData(monocle_cds)) + theme_bw()
+qplot(tsne_1, tsne_2, color = cluster_ext_type, data = pData(monocle_cds)) + theme_bw()
+
+
+```
+
