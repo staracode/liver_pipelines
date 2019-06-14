@@ -7,6 +7,12 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(Seurat)
+library(garnett)
+library(monocle)
+library(org.Mm.eg.db)
+```
+
+```{r}
 cellsdata = Read10X("/Users/tfriedrich/Downloads/FC_102418_with_markers/outs/filtered_feature_bc_matrix/")
 cells = CreateSeuratObject(counts = cellsdata, project = "FC", min.cells = 3, min.features = 200)
 
@@ -44,7 +50,7 @@ percent.mito <- Matrix::colSums(cells[mito.genes, ])/Matrix::colSums(cells)
 # AddMetaData adds columns to object@meta.data, and is a great place to
 # stash QC stats
 cells <- AddMetaData(object = cells, metadata = percent.mito, col.name = "percent.mito")
-VlnPlot(object = cells, features = c("nFeature_RNA", "nCount_RNA", "percent.mito"), nCol = 3)
+VlnPlot(object = cells, features = c("nFeature_RNA", "nCount_RNA", "percent.mito"))
 marker_genes = c("Hnf4a", "Alb", "Fah", "Krt8", "Krt18", "G6pc", "Sox9", "Krt7", "Krt19", "Epcam", "Onecut1", "Afp", "Xist")
 VlnPlot(A,c("Hnf4a", "Alb", "Fah"))
 VlnPlot(B,c("Hnf4a", "Alb", "Fah"))
@@ -63,6 +69,7 @@ g2m.genes <- cc.genes$g2m.genes
 #regress out cell cycle genes
 cells <- CellCycleScoring(object=cells, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
 cells <- RunPCA(object = cells, pc.genes = cells@var.genes, do.print = TRUE, pcs.print = 1:5, genes.print = 5)
+ElbowPlot(cells)
 ```
 
 ```{r}
@@ -71,24 +78,17 @@ top10 <- head(VariableFeatures(cells), 10)
 # plot variable features with and without labels
 plot1 <- VariableFeaturePlot(cells)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-CombinePlots(plots = list(plot1, plot2))
+plot2
 
-ElbowPlot(cells)
-
-#cells <- FindClusters(object = cells, reduction.type = "pca", dims.use = 1:5, resolution = 0.6, print.output = 0, save.SNN = TRUE)
-#cells <- FindClusters(cells, resolution = 0.5)
 cells <- RunTSNE(object = cells, dims.use = 1:10, do.fast = TRUE)
 cells <- RunUMAP(cells, dims = 1:10)
 DimPlot(cells, reduction = "umap")
 
 FeaturePlot(cells, features = marker_genes)
 FeaturePlot(cells, features = c("EGFP.dna","lacZ.dna","mCerulean.dna","mCherry.dna","mCherry.dna","mOrange.dna","tdrfp.dna"))
-DimPlot(cells, reduction = "tsne", cols=factor(monocle_cds$cluster_ext_type),split.by = 'ident')
+```
 
-library(garnett)
-library(monocle)
-cells.monocle <- importCDS(cells)
-
+```{r}
 #Extract data, phenotype data, and feature data from the SeuratObject
 #https://github.com/cole-trapnell-lab/monocle-release/issues/262
 data <- as(as.matrix(cells@assays$RNA@data), 'sparseMatrix')
@@ -104,14 +104,15 @@ monocle_cds <- newCellDataSet(data,
 # generate size factors for normalization later
 monocle_cds <- estimateSizeFactors(monocle_cds)
 
-library(org.Mm.eg.db)
+# markers for common cell types
 marker_file_path <-  "/Users/tfriedrich/Downloads/markers_garnett.txt"
 marker_check <- check_markers(monocle_cds, marker_file_path,
                               db=org.Mm.eg.db,
                               cds_gene_id_type = "SYMBOL",
                               marker_file_gene_id_type = "SYMBOL")
-
 plot_markers(marker_check)
+
+# train cells using marker genes as labels
 set.seed(260)
 pbmc_classifier <- train_cell_classifier(cds = monocle_cds,
                                          marker_file = marker_file_path,
@@ -120,22 +121,35 @@ pbmc_classifier <- train_cell_classifier(cds = monocle_cds,
                                          num_unknown = 50,
                                          marker_file_gene_id_type = "SYMBOL")
 head(pData(monocle_cds))
-
 feature_genes <- get_feature_genes(pbmc_classifier,
                                    node = "root",
                                    db = org.Mm.eg.db)
 head(feature_genes)
-monocle_cds <- classify_cells(monocle_cds, pbmc_classifier,
-                           db = org.Mm.eg.db,
-                           cluster_extend = TRUE,
-                           cds_gene_id_type = "SYMBOL")
-head(pData(monocle_cds))
+#monocle_cds <- classify_cells(monocle_cds, pbmc_classifier,
+#                           db = org.Mm.eg.db,
+#                           cluster_extend = TRUE,
+#                           cds_gene_id_type = "SYMBOL")
+#head(pData(monocle_cds))
 
-library(ggplot2)
-
-qplot(tsne_1, tsne_2, color = cell_type, data = pData(monocle_cds)) + theme_bw()
-qplot(tsne_1, tsne_2, color = cluster_ext_type, data = pData(monocle_cds)) + theme_bw()
-
-
+#library(Rtsne)
+#convert_seurat_to_df = data.matrix(cellsdata)
+#tsne_out <- Rtsne(convert_seurat_to_df,pca=FALSE, theta=0.0, check_duplicates = FALSE)
+#plot(tsne_out$Y,col=, asp=1)
+#DimPlot(cells, reduction = "tsne", cols=factor(monocle_cds$cluster_ext_type),split.by = 'ident')
 ```
 
+```{r}
+#not enough training examples
+#marker_file_path2 <-  "/Users/tfriedrich/Downloads/markers_garnett2.txt"
+#marker_check2 <- check_markers(monocle_cds, marker_file_path2,
+#                              db=org.Mm.eg.db,
+#                              cds_gene_id_type = "SYMBOL",
+#                              marker_file_gene_id_type = "SYMBOL")
+
+#pbmc_classifier2 <- train_cell_classifier(cds = monocle_cds,
+#                                         marker_file = marker_file_path2,
+#                                         db=org.Mm.eg.db,
+#                                         cds_gene_id_type = "SYMBOL",
+#                                         num_unknown = 50,
+#                                         marker_file_gene_id_type = "SYMBOL")
+```
