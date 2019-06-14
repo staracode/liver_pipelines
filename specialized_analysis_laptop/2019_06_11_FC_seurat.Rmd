@@ -82,10 +82,18 @@ plot2
 
 cells <- RunTSNE(object = cells, dims.use = 1:10, do.fast = TRUE)
 cells <- RunUMAP(cells, dims = 1:10)
-DimPlot(cells, reduction = "umap")
 
-FeaturePlot(cells, features = marker_genes)
-FeaturePlot(cells, features = c("EGFP.dna","lacZ.dna","mCerulean.dna","mCherry.dna","mCherry.dna","mOrange.dna","tdrfp.dna"))
+
+pdf("FeaturePlots_FC.pdf")
+DimPlot(cells, reduction = "umap")
+FeaturePlot(cells, features = marker_genes[1:4])
+FeaturePlot(cells, features = marker_genes[5:8])
+FeaturePlot(cells, features = marker_genes[9:12])
+FeaturePlot(cells, features = marker_genes[13])
+FeaturePlot(cells, features = c("EGFP.dna","lacZ.dna","mCerulean.dna","mCherry.dna"))
+FeaturePlot(cells, features = c("mCherry.dna","mOrange.dna","tdrfp.dna"))
+dev.off()
+
 ```
 
 ```{r}
