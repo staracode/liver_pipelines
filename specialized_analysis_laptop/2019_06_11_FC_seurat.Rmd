@@ -1,5 +1,5 @@
 ---
-title: "FC_reanalysis"
+title: "FC_reanalysis with markers of interest"
 author: "Tara Friedrich"
 date: "6/10/2019"
 output: html_document
@@ -10,46 +10,58 @@ library(Seurat)
 library(garnett)
 library(monocle)
 library(org.Mm.eg.db)
+sessionInfo()
 ```
-
+Read in data and filter based on minimum number of cells and genes. 
 ```{r}
 cellsdata = Read10X("/Users/tfriedrich/Downloads/FC_102418_with_markers/outs/filtered_feature_bc_matrix/")
 cells = CreateSeuratObject(counts = cellsdata, project = "FC", min.cells = 3, min.features = 200)
-
-summary(cellsdata["EGFP.dna",])
-summary(cellsdata["lacZ.dna",])
-summary(cellsdata["mCerulean.dna",])
-summary(cellsdata["mCherry.dna",])
-summary(cellsdata["mOrange.dna",])
-summary(cellsdata["tdrfp.dna",])
-
+```
+Number of each cell showing expression for each marker. 
+```{r}
 length(which(cellsdata["EGFP.dna",]>0))
 length(which(cellsdata["lacZ.dna",]>0))
 length(which(cellsdata["mCerulean.dna",]>0))
 length(which(cellsdata["mCherry.dna",]>0))
 length(which(cellsdata["mOrange.dna",]>0))
 length(which(cellsdata["tdrfp.dna",]>0))
-
-length(which(cellsdata["EGFP.dna",]>0))
-length(which(cellsdata["lacZ.dna",]>0))
-length(which(cellsdata["mCerulean.dna",]>0))
-length(which(cellsdata["mCherry.dna",]>0))
-length(which(cellsdata["mOrange.dna",]>0))
-length(which(cellsdata["tdrfp.dna",]>0))
-
+```
+Write cells expressing markers of interest to a file. 
+```{r}
 A = subset(subset(cells, lacZ.dna>0) ,Xist>0)
 B = subset(subset(cells, lacZ.dna==0) ,Xist>0)
 C = subset(subset(cells, tdrfp.dna>0) ,Xist=0)
-```
+tdrfp = subset(cells, tdrfp.dna>0)
+lacZ = subset(cells, lacZ.dna>0)
+mOrange = subset(cells, mOrange.dna>0)
+mCerulean = subset(cells, mCerulean.dna>0)
+mCherry = subset(cells, mCherry.dna>0)
+EGFP = subset(cells, EGFP.dna>0)
 
+write.csv(x = GetAssayData(A), file = "lacZ_positive_and_Xist_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(B), file = "lacZ_negative_and_Xist_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(C), file = "tdrfp_positve_and_Xist_negative.csv", quote=FALSE)
+
+write.csv(x = GetAssayData(tdrfp), file = "tdrfp_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(lacZ), file = "lacZ_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(mOrange), file = "mOrange_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(mCerulean), file = "mCerulean_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(mCherry), file = "mCherry_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(EGFP), file = "EGFP_positve.csv", quote=FALSE)
+```
+Gather scRNA-seq QC metric.
 ```{r}
-# scRNA-seq QC metric.
 mito.genes <- grep(pattern = "^mt-", x = rownames(x = cells), value = TRUE)
 percent.mito <- Matrix::colSums(cells[mito.genes, ])/Matrix::colSums(cells)
+```
 
-# AddMetaData adds columns to object@meta.data, and is a great place to
-# stash QC stats
+AddMetaData adds columns to object@meta.data, and is a great place to stash QC stats
+```{r}
 cells <- AddMetaData(object = cells, metadata = percent.mito, col.name = "percent.mito")
+```
+
+Plot expressino of marker genes
+```{r}
 VlnPlot(object = cells, features = c("nFeature_RNA", "nCount_RNA", "percent.mito"))
 marker_genes = c("Hnf4a", "Alb", "Fah", "Krt8", "Krt18", "G6pc", "Sox9", "Krt7", "Krt19", "Epcam", "Onecut1", "Afp", "Xist")
 VlnPlot(A,c("Hnf4a", "Alb", "Fah"))
@@ -60,18 +72,32 @@ VlnPlot(C,c("Hnf4a", "Alb", "Fah"))
 ```{r}
 cells <- NormalizeData(object = cells, normalization.method = "LogNormalize", 
     scale.factor = 10000)
+```
+vst: First, fits a line to the relationship of log(variance) and log(mean) using local polynomial regression (loess). Then standardizes the feature values using the observed mean and expected variance (given by the fitted line). Feature variance is then calculated on the standardized values after clipping to a maximum (see clip.max parameter).
+```{r}
 cells <- FindVariableFeatures(object = cells, selection.method = "vst", nfeatures = 2000)
-cells <- ScaleData(object = cells, vars.to.regress = c("nUMI", "percent.mito"))
+```
 
+Regress out expression effects confounded by nUMI and percent.mito
+```{r}
+cells <- ScaleData(object = cells, vars.to.regress = c("nUMI", "percent.mito"))
+```
+Regress out cell cycle genes.
+For each gene, Seurat models the relationship between gene expression and the S and G2M cell cycle scores. The scaled residuals of this model represent a ‘corrected’ expression matrix, that can be used downstream for dimensional reduction.
+
+```{r}
 s.genes <- cc.genes$s.genes
 g2m.genes <- cc.genes$g2m.genes
 
-#regress out cell cycle genes
 cells <- CellCycleScoring(object=cells, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+```
+
+```{r}
 cells <- RunPCA(object = cells, pc.genes = cells@var.genes, do.print = TRUE, pcs.print = 1:5, genes.print = 5)
 ElbowPlot(cells)
 ```
 
+Highly variable genes. 
 ```{r}
 # Identify the 10 most highly variable genes
 top10 <- head(VariableFeatures(cells), 10)
@@ -80,12 +106,15 @@ plot1 <- VariableFeaturePlot(cells)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 plot2
 
-cells <- RunTSNE(object = cells, dims.use = 1:10, do.fast = TRUE)
-cells <- RunUMAP(cells, dims = 1:10)
+```
+Visualize using UMAP. Colored by cell state. 
+```{r}
+cells <- RunUMAP(object = cells, dims = 1:10)
+```
 
-
+```{r}
 #pdf("FeaturePlots_FC.pdf")
-DimPlot(cells, reduction = "umap")
+DimPlot(object = cells, reduction = "umap")
 FeaturePlot(cells, features = marker_genes[1:4])
 FeaturePlot(cells, features = marker_genes[5:8])
 FeaturePlot(cells, features = marker_genes[9:12])
@@ -93,7 +122,6 @@ FeaturePlot(cells, features = marker_genes[13])
 FeaturePlot(cells, features = c("EGFP.dna","lacZ.dna","mCerulean.dna","mCherry.dna"))
 FeaturePlot(cells, features = c("mCherry.dna","mOrange.dna","tdrfp.dna"))
 #dev.off()
-
 ```
 
 ```{r}
@@ -119,8 +147,10 @@ marker_check <- check_markers(monocle_cds, marker_file_path,
                               cds_gene_id_type = "SYMBOL",
                               marker_file_gene_id_type = "SYMBOL")
 plot_markers(marker_check)
-
+```
 # train cells using marker genes as labels
+Garnett classification is trained using a multinomial elastic-net regression. This means that certain genes are chosen as the relevant genes for distinguishing between cell types. Which genes are chosen may be of interest, so Garnett includes a function to access the chosen genes. Note: Garnett does not regularize the input markers, so they will be included in the classifier regardless.
+```{r}
 set.seed(260)
 pbmc_classifier <- train_cell_classifier(cds = monocle_cds,
                                          marker_file = marker_file_path,
@@ -131,33 +161,20 @@ pbmc_classifier <- train_cell_classifier(cds = monocle_cds,
 head(pData(monocle_cds))
 feature_genes <- get_feature_genes(pbmc_classifier,
                                    node = "root",
-                                   db = org.Mm.eg.db)
+                                   db = org.Mm.eg.db, 
+                                   convert_ids = TRUE)
 head(feature_genes)
-#monocle_cds <- classify_cells(monocle_cds, pbmc_classifier,
-#                           db = org.Mm.eg.db,
-#                           cluster_extend = TRUE,
-#                           cds_gene_id_type = "SYMBOL")
-#head(pData(monocle_cds))
 
-#library(Rtsne)
-#convert_seurat_to_df = data.matrix(cellsdata)
-#tsne_out <- Rtsne(convert_seurat_to_df,pca=FALSE, theta=0.0, check_duplicates = FALSE)
-#plot(tsne_out$Y,col=, asp=1)
-#DimPlot(cells, reduction = "tsne", cols=factor(monocle_cds$cluster_ext_type),split.by = 'ident')
+write.table(feature_genes, "/Users/tfriedrich/Downloads/garnett_elastic_regression_feature_genes.xls", sep="\t", col.names=NA)
 ```
 
+Differential Expression between TRFP positive and egfp/mCerulean/mCherry/mOrange positive cells 
 ```{r}
-#not enough training examples
-#marker_file_path2 <-  "/Users/tfriedrich/Downloads/markers_garnett2.txt"
-#marker_check2 <- check_markers(monocle_cds, marker_file_path2,
-#                              db=org.Mm.eg.db,
-#                              cds_gene_id_type = "SYMBOL",
-#                              marker_file_gene_id_type = "SYMBOL")
 
-#pbmc_classifier2 <- train_cell_classifier(cds = monocle_cds,
-#                                         marker_file = marker_file_path2,
-#                                         db=org.Mm.eg.db,
-#                                         cds_gene_id_type = "SYMBOL",
-#                                         num_unknown = 50,
-#                                         marker_file_gene_id_type = "SYMBOL")
+library(edgeR)
+DE <- FindMarkers(cells, ident.1 = "G1", ident.2 = "S")
+
+MarkerA  = GetAssayData(EGFP) 
+
+MarkerB  = GetAssayData(tdrfp) 
 ```
