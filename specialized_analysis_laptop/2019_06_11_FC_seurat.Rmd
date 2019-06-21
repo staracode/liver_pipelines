@@ -38,16 +38,16 @@ mCerulean = subset(cells, mCerulean.dna>0)
 mCherry = subset(cells, mCherry.dna>0)
 EGFP = subset(cells, EGFP.dna>0)
 
-write.csv(x = GetAssayData(A), file = "lacZ_positive_and_Xist_positive.csv", quote=FALSE)
-write.csv(x = GetAssayData(B), file = "lacZ_negative_and_Xist_positive.csv", quote=FALSE)
-write.csv(x = GetAssayData(C), file = "tdrfp_positve_and_Xist_negative.csv", quote=FALSE)
+write.csv(x = GetAssayData(A, slot = "counts"), file = "/Users/tfriedrich/Downloads/lacZ_positive_and_Xist_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(B, slot = "counts"), file = "/Users/tfriedrich/Downloads/lacZ_negative_and_Xist_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(C, slot = "counts"), file = "/Users/tfriedrich/Downloads/tdrfp_positve_and_Xist_negative.csv", quote=FALSE)
 
-write.csv(x = GetAssayData(tdrfp), file = "tdrfp_positive.csv", quote=FALSE)
-write.csv(x = GetAssayData(lacZ), file = "lacZ_positive.csv", quote=FALSE)
-write.csv(x = GetAssayData(mOrange), file = "mOrange_positve.csv", quote=FALSE)
-write.csv(x = GetAssayData(mCerulean), file = "mCerulean_positve.csv", quote=FALSE)
-write.csv(x = GetAssayData(mCherry), file = "mCherry_positve.csv", quote=FALSE)
-write.csv(x = GetAssayData(EGFP), file = "EGFP_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(tdrfp, slot = "counts"), file = "/Users/tfriedrich/Downloads/tdrfp_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(lacZ, slot = "counts"), file = "/Users/tfriedrich/Downloads/lacZ_positive.csv", quote=FALSE)
+write.csv(x = GetAssayData(mOrange, slot = "counts"), file = "/Users/tfriedrich/Downloads/mOrange_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(mCerulean, slot = "counts"), file = "/Users/tfriedrich/Downloads/mCerulean_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(mCherry, slot = "counts"), file = "/Users/tfriedrich/Downloads/mCherry_positve.csv", quote=FALSE)
+write.csv(x = GetAssayData(EGFP), file = "/Users/tfriedrich/Downloads/EGFP_positve.csv", quote=FALSE)
 ```
 Gather scRNA-seq QC metric.
 ```{r}
@@ -105,7 +105,6 @@ top10 <- head(VariableFeatures(cells), 10)
 plot1 <- VariableFeaturePlot(cells)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 plot2
-
 ```
 Visualize using UMAP. Colored by cell state. 
 ```{r}
@@ -174,7 +173,7 @@ Differential Expression between TRFP positive and egfp/mCerulean/mCherry/mOrange
 library(edgeR)
 DE <- FindMarkers(cells, ident.1 = "G1", ident.2 = "S")
 
-MarkerA  = GetAssayData(EGFP) 
-MarkerB  = GetAssayData(tdrfp)
+MarkerA  = GetAssayData(EGFP, slot = "counts") 
+MarkerB  = GetAssayData(tdrfp, slot = "counts")
   
 ```
